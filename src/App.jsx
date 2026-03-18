@@ -1,121 +1,85 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState } from "react"
 
-function App() {
-  const [count, setCount] = useState(0)
+const messages = [
+  "🎉 Ο πάπης είναι ΑΠΙΘΑΝΟΣ",
+  "🐬 Ο Ττουλιός θα κερδίσει μετάλιο στο μπάντμιντον",
+  "⭐ Ο πάπης είναι ΤΕΛΕΙΟΣ",
+  "🦋 Η μάμη είναι η καλύτερη στο squash",
+  "🍕 Η Μελέα κάνει ωραίους τροχούς",
+  "🌺 Θα φάω την Μελέα",
+  "🚀 Ο Ττουλλιός είναι παχύς"
+]
+
+export default function App() {
+  const [message, setMessage] = useState(null)
+  const [bounce, setBounce] = useState(false)
+
+  function showMessage() {
+    const random = messages[Math.floor(Math.random() * messages.length)]
+    setMessage(random)
+    setBounce(true)
+    setTimeout(() => setBounce(false), 500)
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div style={{
+      minHeight: "100vh",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "linear-gradient(135deg, #f5af19, #f12711)",
+      fontFamily: "Georgia, serif",
+      padding: "20px",
+      textAlign: "center"
+    }}>
+      <h1 style={{ color: "white", fontSize: "2.5rem", marginBottom: "40px" }}>
+        🌍 GeoFamily
+      </h1>
 
-      <div className="ticks"></div>
+      <button
+        onClick={showMessage}
+        style={{
+          padding: "20px 40px",
+          fontSize: "1.5rem",
+          borderRadius: "50px",
+          border: "none",
+          background: "white",
+          color: "#f12711",
+          fontWeight: "bold",
+          cursor: "pointer",
+          boxShadow: "0 8px 20px rgba(0,0,0,0.2)",
+          transition: "transform 0.1s",
+        }}
+        onMouseDown={e => e.target.style.transform = "scale(0.95)"}
+        onMouseUp={e => e.target.style.transform = "scale(1)"}
+      >
+        ✨ Πάτησε με!
+      </button>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      {message && (
+        <div style={{
+          marginTop: "40px",
+          background: "white",
+          borderRadius: "20px",
+          padding: "24px 36px",
+          fontSize: "1.4rem",
+          fontWeight: "bold",
+          color: "#333",
+          boxShadow: "0 8px 20px rgba(0,0,0,0.15)",
+          animation: bounce ? "none" : "fadeIn 0.4s ease",
+          maxWidth: "500px"
+        }}>
+          {message}
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
   )
 }
-
-export default App
