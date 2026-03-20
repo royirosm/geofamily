@@ -1,86 +1,61 @@
-import { useState } from "react"
+// App.jsx
+// Root component. Uses React Router for navigation between screens.
+// Routes:
+//   /                → HomeScreen
+//   /quiz/capitals   → MultipleChoice (Capitals module)
+//   /results         → ResultsScreen
 
-const messages = [
-  "⭐ Η ΜΕΛΕΑ ΕΙΝΑΙ ΧΟΝΤΡΗ",
-  "🍕 η μελεα ειναι εξυπνοτερη απο τη μαμη",
-  "🌺 ο χριστοσ θα καρδιση στουσ αγονεσ και θα πεσει η φατσα τησ μαμισ",
-  "🚀 η μαμη δεν ξερει να παιζει μπατμιτον",
-  "ο μινασ Ιουνισ  ειναι χαλια γιατι ειναι τα γενεθλια τησ μαμισ οοοοοοοο τη σουπα η μιτη σου κουλουπα",
-  "Ο ΧΡΙΣΤΟΣ ΕΙΝΑΙ  ΤΕΛΙΟΣ",
-  "Ο ΧΡΙΣΤΟΣ ΕΙΝΑΙ ΑΠΙΘΑΝΟΣ",
-  "🎉 Η ΜΑΜΗ ΕΙΝΑΙ ΠΑΧΙΑ"
-]
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { useCountries } from './hooks/useCountries'
+import { useLanguage }  from './context/LanguageContext'
+import Navbar           from './components/Navbar'
+import HomeScreen       from './screens/HomeScreen'
+import MultipleChoice   from './modules/capitals/MultipleChoice'
+import ResultsScreen    from './screens/ResultsScreen'
 
-export default function App() {
-  const [message, setMessage] = useState(null)
-  const [bounce, setBounce] = useState(false)
+function AppContent() {
+  const { countries, loading, error } = useCountries()
+  const { t } = useLanguage()
 
-  function showMessage() {
-    const random = messages[Math.floor(Math.random() * messages.length)]
-    setMessage(random)
-    setBounce(true)
-    setTimeout(() => setBounce(false), 500)
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="text-5xl mb-4 animate-spin">🌍</div>
+          <p className="text-gray-500 text-lg">{t('loading')}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+        <div className="text-center max-w-sm">
+          <div className="text-5xl mb-4">😕</div>
+          <p className="text-red-500 text-lg">{t('error')}</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      background: "linear-gradient(135deg, #f5af19, #f12711)",
-      fontFamily: "Georgia, serif",
-      padding: "20px",
-      textAlign: "center"
-    }}>
-      <h1 style={{ color: "white", fontSize: "2.5rem", marginBottom: "40px" }}>
-        🌍 GeoFamily
-      </h1>
-
-      <button
-        onClick={showMessage}
-        style={{
-          padding: "20px 40px",
-          fontSize: "1.5rem",
-          borderRadius: "50px",
-          border: "none",
-          background: "white",
-          color: "#f12711",
-          fontWeight: "bold",
-          cursor: "pointer",
-          boxShadow: "0 8px 20px rgba(0,0,0,0.2)",
-          transition: "transform 0.1s",
-        }}
-        onMouseDown={e => e.target.style.transform = "scale(0.95)"}
-        onMouseUp={e => e.target.style.transform = "scale(1)"}
-      >
-        ✨ Πάτησε με!
-      </button>
-
-      {message && (
-        <div style={{
-          marginTop: "40px",
-          background: "white",
-          borderRadius: "20px",
-          padding: "24px 36px",
-          fontSize: "1.4rem",
-          fontWeight: "bold",
-          color: "#333",
-          boxShadow: "0 8px 20px rgba(0,0,0,0.15)",
-          animation: bounce ? "none" : "fadeIn 0.4s ease",
-          maxWidth: "500px"
-        }}>
-          {message}
-        </div>
-      )}
-
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+    <div className="min-h-screen">
+      <Navbar />
+      <Routes>
+        <Route path="/"               element={<HomeScreen />} />
+        <Route path="/quiz/capitals"  element={<MultipleChoice countries={countries} />} />
+        <Route path="/results"        element={<ResultsScreen />} />
+        <Route path="*"               element={<HomeScreen />} />
+      </Routes>
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   )
 }
