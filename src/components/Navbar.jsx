@@ -2,6 +2,7 @@
 // Top navigation bar — always visible.
 // Mobile-optimised: icon-only age toggle + compact EN/EL pill to fit in one row.
 // Logo click navigates home.
+// Player chip (avatar + name) — tap to open player switcher overlay.
 // Gear icon opens Settings modal (questions per round).
 // Toggles are disabled during a quiz (/quiz/*) to prevent mid-game changes.
 
@@ -9,14 +10,18 @@ import { useState }      from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useLanguage }   from '../context/LanguageContext'
 import { useAgeMode }    from '../context/AgeModeContext'
+import { usePlayer }     from '../context/PlayerContext'
 import SettingsModal     from './SettingsModal'
+import PlayerSelectScreen from '../screens/PlayerSelectScreen'
 
 export default function Navbar() {
   const { lang, setLang, t } = useLanguage()
   const { ageMode, setAgeMode } = useAgeMode()
+  const { activePlayer }  = usePlayer()
   const location  = useLocation()
   const navigate  = useNavigate()
   const [showSettings, setShowSettings] = useState(false)
+  const [showPlayerSelect, setShowPlayerSelect] = useState(false)
 
   // Disable toggles on any quiz route
   const inQuiz = location.pathname.startsWith('/quiz')
@@ -44,7 +49,7 @@ export default function Navbar() {
         {/* Right side controls */}
         <div className={`flex items-center gap-1.5 transition-opacity duration-200 ${inQuiz ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
 
-          {/* Age mode toggle — icon only on all sizes */}
+          {/* Age mode toggle — icon only */}
           <div className="flex items-center bg-gray-100 rounded-full p-0.5 gap-0.5">
             <IconToggle
               active={ageMode === 'kids'}
@@ -84,6 +89,20 @@ export default function Navbar() {
             </IconToggle>
           </div>
 
+          {/* Player chip */}
+          {activePlayer && (
+            <button
+              onClick={() => setShowPlayerSelect(true)}
+              className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 rounded-full pl-1 pr-2 py-0.5 transition-colors"
+              aria-label={t('playerSwitch')}
+            >
+              <span className="text-lg leading-none">{activePlayer.avatar}</span>
+              <span className="text-xs font-bold text-gray-700 max-w-[60px] truncate">
+                {activePlayer.name}
+              </span>
+            </button>
+          )}
+
           {/* Settings gear */}
           <button
             onClick={() => setShowSettings(true)}
@@ -96,6 +115,13 @@ export default function Navbar() {
       </nav>
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+
+      {/* Player switcher — full-screen overlay */}
+      {showPlayerSelect && (
+        <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
+          <PlayerSelectScreen onDone={() => setShowPlayerSelect(false)} />
+        </div>
+      )}
     </>
   )
 }

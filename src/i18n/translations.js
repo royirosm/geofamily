@@ -71,6 +71,64 @@ const translations = {
     el: 'Εντάξει',
   },
 
+  // --- Player profiles ---
+  playerWhoIsPlaying: {
+    en: "Who's playing?",
+    el: 'Ποιος παίζει;',
+  },
+  playerPickOrAdd: {
+    en: 'Pick a player or add a new one',
+    el: 'Διάλεξε παίκτη ή πρόσθεσε νέο',
+  },
+  playerAdd: {
+    en: 'Add player',
+    el: 'Νέος παίκτης',
+  },
+  playerName: {
+    en: 'Name',
+    el: 'Όνομα',
+  },
+  playerNamePlaceholder: {
+    en: 'Enter a name…',
+    el: 'Γράψε ένα όνομα…',
+  },
+  playerNameRequired: {
+    en: 'Please enter a name',
+    el: 'Παρακαλώ γράψε ένα όνομα',
+  },
+  playerNameTaken: {
+    en: 'That name is already taken',
+    el: 'Αυτό το όνομα χρησιμοποιείται ήδη',
+  },
+  playerAvatar: {
+    en: 'Choose an avatar',
+    el: 'Διάλεξε avatar',
+  },
+  playerAddConfirm: {
+    en: "Let's go!",
+    el: 'Πάμε!',
+  },
+  playerAddCancel: {
+    en: 'Cancel',
+    el: 'Ακύρωση',
+  },
+  playerDeleteConfirm: {
+    en: 'Delete',
+    el: 'Διαγραφή',
+  },
+  playerDeleteYes: {
+    en: 'Yes, delete',
+    el: 'Ναι, διαγραφή',
+  },
+  playerDeleteNo: {
+    en: 'Keep',
+    el: 'Όχι',
+  },
+  playerSwitch: {
+    en: 'Switch player',
+    el: 'Αλλαγή παίκτη',
+  },
+
   // --- Home screen ---
   homeTitle: {
     en: 'Learn Geography',

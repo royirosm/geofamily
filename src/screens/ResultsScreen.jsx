@@ -1,10 +1,13 @@
 // ResultsScreen.jsx
 // Shown after finishing a quiz round.
-// Displays: circular score, message, full question breakdown, play again / home buttons.
+// On mount, calls recordRound() to persist the player's answers to the SRS engine.
+// Displays: circular score ring, message, full question breakdown, play again / home buttons.
 
+import { useEffect, useRef }        from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useLanguage }              from '../context/LanguageContext'
 import { useAgeMode }               from '../context/AgeModeContext'
+import { usePlayerProgress }        from '../hooks/usePlayerProgress'
 
 export default function ResultsScreen() {
   const location = useLocation()
@@ -12,6 +15,7 @@ export default function ResultsScreen() {
 
   const { lang: liveLang, tLang } = useLanguage()
   const { ageMode: liveAgeMode }  = useAgeMode()
+  const { recordRound }           = usePlayerProgress()
 
   const score         = location.state?.score   ?? 0
   const total         = location.state?.total   ?? 10
@@ -21,6 +25,15 @@ export default function ResultsScreen() {
   const isKids        = frozenAgeMode === 'kids'
 
   const percentage = Math.round((score / total) * 100)
+
+  // Record SRS scores once when the screen mounts — run exactly once per round
+  const recorded = useRef(false)
+  useEffect(() => {
+    if (!recorded.current && answers.length > 0) {
+      recorded.current = true
+      recordRound(answers)
+    }
+  }, [answers, recordRound])
 
   function getMessage() {
     if (percentage === 100) return tLang('resultsPerfect', frozenLang)
@@ -56,10 +69,7 @@ export default function ResultsScreen() {
           <div className="flex justify-center mb-6">
             <div className="relative w-36 h-36">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-                <circle
-                  cx="60" cy="60" r={radius}
-                  fill="none" stroke="#e5e7eb" strokeWidth="10"
-                />
+                <circle cx="60" cy="60" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="10" />
                 <circle
                   cx="60" cy="60" r={radius}
                   fill="none"
@@ -91,23 +101,13 @@ export default function ResultsScreen() {
           <div className="space-y-3">
             <button
               onClick={handlePlayAgain}
-              className={`
-                w-full rounded-xl font-bold text-white
-                bg-blue-500 hover:bg-blue-600
-                transition-all duration-200 active:scale-95
-                ${isKids ? 'py-4 text-xl' : 'py-3 text-base'}
-              `}
+              className={`w-full rounded-xl font-bold text-white bg-blue-500 hover:bg-blue-600 transition-all active:scale-95 ${isKids ? 'py-4 text-xl' : 'py-3 text-base'}`}
             >
               🔄 {tLang('tryAgain', frozenLang)}
             </button>
             <button
               onClick={handleHome}
-              className={`
-                w-full rounded-xl font-bold
-                bg-gray-100 text-gray-600 hover:bg-gray-200
-                transition-all duration-200 active:scale-95
-                ${isKids ? 'py-4 text-xl' : 'py-3 text-base'}
-              `}
+              className={`w-full rounded-xl font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all active:scale-95 ${isKids ? 'py-4 text-xl' : 'py-3 text-base'}`}
             >
               🏠 {tLang('home', frozenLang)}
             </button>
@@ -117,15 +117,11 @@ export default function ResultsScreen() {
         {/* Question breakdown */}
         {answers.length > 0 && (
           <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
-
-            {/* Section header */}
             <div className="px-6 py-4 border-b border-gray-100">
               <h3 className={`font-bold text-gray-700 ${isKids ? 'text-xl' : 'text-base'}`}>
                 {tLang('resultsReview', frozenLang)}
               </h3>
             </div>
-
-            {/* Answer rows */}
             <div className="divide-y divide-gray-50">
               {answers.map((answer, i) => {
                 const country = answer.question.country
@@ -134,39 +130,30 @@ export default function ResultsScreen() {
                 return (
                   <div
                     key={i}
-                    className={`
-                      flex items-center gap-4 px-6 py-4
-                      ${correct ? 'bg-white' : 'bg-red-50'}
-                    `}
+                    className={`flex items-center gap-4 px-6 py-4 ${correct ? 'bg-white' : 'bg-red-50'}`}
                   >
-                    {/* Flag */}
                     <img
                       src={country.flag}
                       alt={country.name[frozenLang]}
                       className="w-12 h-8 object-cover rounded-md shadow-sm flex-shrink-0"
                     />
-
-                    {/* Country + answer info */}
                     <div className="flex-1 min-w-0">
                       <p className={`font-semibold text-gray-800 truncate ${isKids ? 'text-lg' : 'text-sm'}`}>
                         {country.name[frozenLang]}
                       </p>
                       {correct ? (
                         <p className={`text-green-600 ${isKids ? 'text-base' : 'text-xs'}`}>
-                          {answer.question.correctCapital}
+                          ✓ {answer.chosen}
                         </p>
                       ) : (
-                        <p className={`text-red-400 ${isKids ? 'text-base' : 'text-xs'}`}>
-                          <span className="line-through mr-2">{answer.chosen}</span>
-                          <span className="text-gray-600 font-medium">→ {answer.question.correctCapital}</span>
+                        <p className={`text-red-500 ${isKids ? 'text-base' : 'text-xs'}`}>
+                          ✗ {answer.chosen} → <strong>{answer.question.correctCapital}</strong>
                         </p>
                       )}
                     </div>
-
-                    {/* Result icon */}
-                    <div className={`text-2xl flex-shrink-0 ${isKids ? 'text-3xl' : 'text-xl'}`}>
+                    <span className="text-xl flex-shrink-0">
                       {correct ? '✅' : '❌'}
-                    </div>
+                    </span>
                   </div>
                 )
               })}
