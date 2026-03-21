@@ -1,32 +1,35 @@
 // ResultsScreen.jsx
-// Shown after finishing a quiz round.
-// Calls recordRound(answers, score, total) with the correct moduleId
-// so SRS scores and round history are saved per module.
+// Shows score + per-question review after a quiz round.
+// Phase 3: uses <FlagImage> in the review breakdown for offline fallback.
+// Records the round via usePlayerProgress on mount.
 
-import { useEffect, useRef }        from 'react'
+import { useEffect, useRef }    from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useLanguage }              from '../context/LanguageContext'
-import { useAgeMode }               from '../context/AgeModeContext'
-import { usePlayerProgress }        from '../hooks/usePlayerProgress'
+import { useLanguage }          from '../context/LanguageContext'
+import { useAgeMode }           from '../context/AgeModeContext'
+import { usePlayerProgress }    from '../hooks/usePlayerProgress'
+import FlagImage                from '../components/FlagImage'
 
 export default function ResultsScreen() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { tLang } = useLanguage()
 
-  const { lang: liveLang, tLang } = useLanguage()
-  const { ageMode: liveAgeMode }  = useAgeMode()
+  const {
+    score     = 0,
+    total     = 0,
+    answers   = [],
+    lang:     frozenLang    = 'en',
+    ageMode:  frozenAgeMode = 'explorer',
+    moduleId  = 'capitals',
+  } = location.state ?? {}
 
-  const score         = location.state?.score    ?? 0
-  const total         = location.state?.total    ?? 10
-  const answers       = location.state?.answers  ?? []
-  const frozenLang    = location.state?.lang     ?? liveLang
-  const frozenAgeMode = location.state?.ageMode  ?? liveAgeMode
-  const moduleId      = location.state?.moduleId ?? 'capitals'
-  const isKids        = frozenAgeMode === 'kids'
+  const isKids = frozenAgeMode === 'kids'
+  const pct    = total > 0 ? Math.round((score / total) * 100) : 0
 
   const { recordRound } = usePlayerProgress(moduleId)
+  const recorded        = useRef(false)
 
-  const recorded = useRef(false)
   useEffect(() => {
     if (!recorded.current && answers.length > 0) {
       recorded.current = true
@@ -34,41 +37,38 @@ export default function ResultsScreen() {
     }
   }, [answers, score, total, recordRound])
 
-  const percentage = Math.round((score / total) * 100)
-
   function getMessage() {
-    if (percentage === 100) return tLang('resultsPerfect', frozenLang)
-    if (percentage >= 70)   return tLang('resultsGreat', frozenLang)
-    if (percentage >= 40)   return tLang('resultsGood', frozenLang)
-    return tLang('resultsKeepTrying', frozenLang)
+    if (pct === 100) return tLang('resultsPerfect',    frozenLang)
+    if (pct >= 70)  return tLang('resultsGreat',       frozenLang)
+    if (pct >= 40)  return tLang('resultsGood',        frozenLang)
+    return                 tLang('resultsKeepTrying',  frozenLang)
   }
 
-  const radius        = 54
-  const circumference = 2 * Math.PI * radius
-  const offset        = circumference - (percentage / 100) * circumference
-  const ringColor     = percentage === 100 ? '#22c55e' : percentage >= 70 ? '#3b82f6' : '#f59e0b'
+  const circumference = 2 * Math.PI * 40
+  const strokeOffset  = circumference - (pct / 100) * circumference
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 px-4 py-8">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-slate-50 to-blue-50 px-4 py-8">
       <div className="max-w-lg mx-auto space-y-6">
 
         {/* Score card */}
         <div className="bg-white rounded-3xl shadow-xl p-8 text-center">
-          <div className="flex justify-center mb-6">
-            <div className="relative w-36 h-36">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-                <circle cx="60" cy="60" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="10" />
-                <circle cx="60" cy="60" r={radius} fill="none" stroke={ringColor} strokeWidth="10"
-                  strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset}
-                  className="transition-all duration-1000" />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className={`font-extrabold text-gray-800 ${isKids ? 'text-4xl' : 'text-3xl'}`}>{score}</span>
-                <span className="text-gray-400 text-sm">/ {total}</span>
-              </div>
-            </div>
+          <svg viewBox="0 0 100 100" className="w-28 h-28 mx-auto mb-4 -rotate-90">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" strokeWidth="10" />
+            <circle
+              cx="50" cy="50" r="40" fill="none"
+              stroke={pct >= 70 ? '#22c55e' : pct >= 40 ? '#f59e0b' : '#ef4444'}
+              strokeWidth="10"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeOffset}
+              className="transition-all duration-700"
+            />
+          </svg>
+          <div className="text-center -mt-2 mb-4">
+            <span className={`font-extrabold text-gray-800 ${isKids ? 'text-5xl' : 'text-4xl'}`}>{score}</span>
+            <span className="text-gray-400 text-sm"> / {total}</span>
           </div>
-
           <h2 className={`font-extrabold text-gray-800 mb-2 ${isKids ? 'text-3xl' : 'text-2xl'}`}>
             {tLang('resultsTitle', frozenLang)}
           </h2>
@@ -104,7 +104,15 @@ export default function ResultsScreen() {
                 const correct = answer.correct
                 return (
                   <div key={i} className={`flex items-center gap-4 px-6 py-4 ${correct ? 'bg-white' : 'bg-red-50'}`}>
-                    <img src={country.flag} alt={country.name[frozenLang]} className="w-12 h-8 object-cover rounded-md shadow-sm flex-shrink-0" />
+                    {/* FlagImage with fallback */}
+                    <div className="flex-shrink-0">
+                      <FlagImage
+                        src={country.flag}
+                        alt={country.name[frozenLang]}
+                        className="w-12 h-8"
+                        isKids={isKids}
+                      />
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className={`font-semibold text-gray-800 truncate ${isKids ? 'text-lg' : 'text-sm'}`}>
                         {country.name[frozenLang]}

@@ -1,6 +1,6 @@
 // MultipleChoice.jsx
 // Capitals quiz screen.
-// Passes moduleId 'capitals' to usePlayerProgress for per-module SRS storage.
+// Phase 3: uses <FlagImage> instead of raw <img> for graceful offline fallback.
 
 import { useState, useEffect, useRef }  from 'react'
 import { useLocation, useNavigate }     from 'react-router-dom'
@@ -9,6 +9,7 @@ import { useAgeMode }                   from '../../context/AgeModeContext'
 import { useSettings }                  from '../../context/SettingsContext'
 import { usePlayerProgress }            from '../../hooks/usePlayerProgress'
 import { generateQuestions }            from '../../utils/questionGenerator'
+import FlagImage                        from '../../components/FlagImage'
 
 const MODULE_ID = 'capitals'
 
@@ -25,12 +26,12 @@ export default function MultipleChoice({ countries }) {
   const frozenAgeMode = location.state?.ageMode ?? liveAgeMode
   const isKids        = frozenAgeMode === 'kids'
 
-  const [questions, setQuestions]           = useState([])
-  const [current, setCurrent]               = useState(0)
-  const [selected, setSelected]             = useState(null)
-  const [score, setScore]                   = useState(0)
-  const [streak, setStreak]                 = useState(0)
-  const [answers, setAnswers]               = useState([])
+  const [questions, setQuestions]             = useState([])
+  const [current, setCurrent]                 = useState(0)
+  const [selected, setSelected]               = useState(null)
+  const [score, setScore]                     = useState(0)
+  const [streak, setStreak]                   = useState(0)
+  const [answers, setAnswers]                 = useState([])
   const [showExitConfirm, setShowExitConfirm] = useState(false)
 
   const generated = useRef(false)
@@ -58,7 +59,7 @@ export default function MultipleChoice({ countries }) {
   function handleAnswer(choice) {
     if (isAnswered) return
     setSelected(choice.label)
-    const correct   = choice.isCorrect
+    const correct = choice.isCorrect
     setScore(s  => correct ? s + 1 : s)
     setStreak(s => correct ? s + 1 : 0)
     setAnswers(prev => [...prev, { question, chosen: choice.label, correct }])
@@ -115,11 +116,13 @@ export default function MultipleChoice({ countries }) {
       {/* Main content */}
       <div className="flex-1 overflow-hidden flex flex-col items-center justify-center px-4 pb-3 max-w-lg mx-auto w-full">
 
+        {/* Flag — uses FlagImage for offline fallback */}
         <div className="mb-3 rounded-xl overflow-hidden shadow-md border border-gray-100 bg-white flex-shrink-0">
-          <img
+          <FlagImage
             src={question.country.flag}
             alt={`Flag of ${question.country.name[frozenLang]}`}
-            className={`object-cover ${isKids ? 'w-44 h-28' : 'w-36 h-24'}`}
+            className={isKids ? 'w-44 h-28' : 'w-36 h-24'}
+            isKids={isKids}
           />
         </div>
 

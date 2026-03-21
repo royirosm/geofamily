@@ -1,11 +1,12 @@
 // HomeScreen.jsx
-// Landing page. Shows the control strip (age mode, language, settings,
-// switch player) that previously lived in the navbar. Also fixes the
-// vertical scroll issue by using h-[100dvh] + overflow-y-auto instead
-// of min-h-screen, so the browser's own chrome doesn't cause a phantom
-// scrollable region on mobile.
+// Landing page.
+// Phase 3 additions:
+//   - Fullscreen button in control strip (hidden when already in PWA standalone mode
+//     or when the Fullscreen API is unavailable — i.e. iOS Safari in browser).
+//   - h-[100dvh] + overflow-y-auto to eliminate phantom mobile scroll.
+//   - Control strip carries age mode, language, player-switch, fullscreen, settings.
 
-import { useState }       from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate }    from 'react-router-dom'
 import { useLanguage }    from '../context/LanguageContext'
 import { useAgeMode }     from '../context/AgeModeContext'
@@ -45,27 +46,58 @@ const modules = [
   },
 ]
 
+// Returns true when the app is running as an installed PWA (standalone mode).
+// In that case the fullscreen button is redundant — we hide it.
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true // iOS PWA flag
+}
+
+// Returns true when the Fullscreen API is available.
+// iOS Safari in browser does NOT support it, so the button is hidden there.
+function fullscreenSupported() {
+  return !!document.documentElement.requestFullscreen
+}
+
 export default function HomeScreen() {
   const navigate              = useNavigate()
   const { lang, setLang, t }  = useLanguage()
   const { ageMode, setAgeMode, isKids } = useAgeMode()
   const { activePlayer }      = usePlayer()
-  const [showSettings,      setShowSettings]      = useState(false)
-  const [showPlayerSelect,  setShowPlayerSelect]  = useState(false)
+  const [showSettings,     setShowSettings]     = useState(false)
+  const [showPlayerSelect, setShowPlayerSelect] = useState(false)
+  const [isFullscreen,     setIsFullscreen]     = useState(!!document.fullscreenElement)
 
   const bg = activePlayer ? getBg(activePlayer.avatarBg) : null
+  const showFullscreenBtn = !isStandalone() && fullscreenSupported()
+
+  // Keep the button icon in sync with actual fullscreen state
+  useEffect(() => {
+    function onFsChange() {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {
+        // Browser refused (e.g. gesture not met) — silently ignore
+      })
+    } else {
+      document.exitFullscreen()
+    }
+  }, [])
 
   function handleStartQuiz(moduleKey) {
     navigate(`/quiz/${moduleKey}`, { state: { lang, ageMode } })
   }
 
   return (
-    // h-[100dvh] accounts for mobile browser chrome (address bar, bottom bar).
-    // overflow-y-auto allows scrolling only if content genuinely overflows.
     <div className="h-[100dvh] overflow-y-auto bg-gradient-to-br from-slate-50 to-blue-50">
 
-      {/* ── Control strip ────────────────────────────────────────────── */}
-      {/* Replaces the controls that were previously in the navbar.      */}
+      {/* ── Control strip ─────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 max-w-2xl mx-auto">
 
         {/* Age mode toggle */}
@@ -88,7 +120,7 @@ export default function HomeScreen() {
           </ModeButton>
         </div>
 
-        {/* Right side: lang + player-switch + settings */}
+        {/* Right side controls */}
         <div className="flex items-center gap-2">
 
           {/* Language toggle */}
@@ -125,6 +157,18 @@ export default function HomeScreen() {
             </button>
           )}
 
+          {/* Fullscreen — hidden on iOS browser & installed PWA */}
+          {showFullscreenBtn && (
+            <button
+              onClick={toggleFullscreen}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors text-sm"
+              aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            >
+              {isFullscreen ? '✕' : '⛶'}
+            </button>
+          )}
+
           {/* Settings */}
           <button
             onClick={() => setShowSettings(true)}
@@ -136,7 +180,7 @@ export default function HomeScreen() {
         </div>
       </div>
 
-      {/* ── Hero ─────────────────────────────────────────────────────── */}
+      {/* ── Hero ──────────────────────────────────────────────────── */}
       <div className="text-center pt-8 pb-8 px-4">
         <div className={`text-6xl mb-4 ${isKids ? 'animate-bounce' : ''}`}>🌍</div>
         <h1 className={`font-extrabold text-gray-800 mb-2 ${isKids ? 'text-4xl' : 'text-3xl'}`}>
@@ -147,7 +191,7 @@ export default function HomeScreen() {
         </p>
       </div>
 
-      {/* ── Module grid ──────────────────────────────────────────────── */}
+      {/* ── Module grid ───────────────────────────────────────────── */}
       <div className="max-w-2xl mx-auto px-4 pb-8">
         <p className={`text-center font-semibold text-gray-400 uppercase tracking-widest mb-6 ${isKids ? 'text-base' : 'text-xs'}`}>
           {t('chooseModule')}
@@ -166,7 +210,7 @@ export default function HomeScreen() {
         </div>
       </div>
 
-      {/* ── Modals ───────────────────────────────────────────────────── */}
+      {/* ── Modals ────────────────────────────────────────────────── */}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
 
       {showPlayerSelect && (
@@ -177,8 +221,6 @@ export default function HomeScreen() {
     </div>
   )
 }
-
-// ── Sub-components ────────────────────────────────────────────────────────────
 
 function ModeButton({ active, onClick, activeClass, label, children }) {
   return (
