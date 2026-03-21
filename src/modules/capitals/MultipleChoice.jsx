@@ -1,10 +1,6 @@
 // MultipleChoice.jsx
 // Capitals quiz screen.
-// Reads lang + ageMode from route state (frozen at quiz start by HomeScreen).
-// Reads questionsPerRound from SettingsContext.
-// Loads the active player's SRS progress and passes it to generateQuestions
-// so weaker/newer countries appear more often.
-// Designed to fit entirely on one mobile screen — no scrolling needed.
+// Passes moduleId 'capitals' to usePlayerProgress for per-module SRS storage.
 
 import { useState, useEffect, useRef }  from 'react'
 import { useLocation, useNavigate }     from 'react-router-dom'
@@ -14,6 +10,8 @@ import { useSettings }                  from '../../context/SettingsContext'
 import { usePlayerProgress }            from '../../hooks/usePlayerProgress'
 import { generateQuestions }            from '../../utils/questionGenerator'
 
+const MODULE_ID = 'capitals'
+
 export default function MultipleChoice({ countries }) {
   const location = useLocation()
   const navigate = useNavigate()
@@ -21,7 +19,7 @@ export default function MultipleChoice({ countries }) {
   const { lang: liveLang, tLang }  = useLanguage()
   const { ageMode: liveAgeMode }   = useAgeMode()
   const { questionsPerRound }      = useSettings()
-  const { getProgress }            = usePlayerProgress()
+  const { getProgress }            = usePlayerProgress(MODULE_ID)
 
   const frozenLang    = location.state?.lang    ?? liveLang
   const frozenAgeMode = location.state?.ageMode ?? liveAgeMode
@@ -61,10 +59,8 @@ export default function MultipleChoice({ countries }) {
     if (isAnswered) return
     setSelected(choice.label)
     const correct   = choice.isCorrect
-    const newScore  = correct ? score + 1 : score
-    const newStreak = correct ? streak + 1 : 0
-    setScore(newScore)
-    setStreak(newStreak)
+    setScore(s  => correct ? s + 1 : s)
+    setStreak(s => correct ? s + 1 : 0)
     setAnswers(prev => [...prev, { question, chosen: choice.label, correct }])
   }
 
@@ -73,10 +69,11 @@ export default function MultipleChoice({ countries }) {
       navigate('/results', {
         state: {
           score,
-          total:   questions.length,
+          total:    questions.length,
           answers,
-          lang:    frozenLang,
-          ageMode: frozenAgeMode,
+          lang:     frozenLang,
+          ageMode:  frozenAgeMode,
+          moduleId: MODULE_ID,
         },
       })
     } else {
@@ -85,48 +82,39 @@ export default function MultipleChoice({ countries }) {
     }
   }
 
-  function handleExitConfirmed() {
-    navigate('/')
-  }
+  function handleExitConfirmed() { navigate('/') }
 
   const progressPct = ((current + (isAnswered ? 1 : 0)) / questions.length) * 100
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col">
 
-      {/* ── Top bar ── */}
+      {/* Top bar */}
       <div className="w-full px-4 pt-3 pb-2 flex-shrink-0">
         <div className="flex justify-between items-center mb-2">
           <button
             onClick={() => setShowExitConfirm(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 hover:text-red-700 rounded-full text-sm font-semibold transition-colors duration-200"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 rounded-full text-sm font-semibold transition-colors"
           >
             <span className="text-xs">✕</span>
             {tLang('exitButtonLabel', frozenLang)}
           </button>
-
           <span className={`font-bold text-blue-600 ${isKids ? 'text-base' : 'text-sm'}`}>
             {tLang('quizScore', frozenLang)}: {score}
             {streak >= 2 && <span className="ml-2 text-orange-500">🔥 {streak}</span>}
           </span>
         </div>
-
         <div className="w-full bg-gray-200 rounded-full h-1.5">
-          <div
-            className="bg-blue-500 h-1.5 rounded-full transition-all duration-500"
-            style={{ width: `${progressPct}%` }}
-          />
+          <div className="bg-blue-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }} />
         </div>
-
         <div className="text-center mt-1 text-gray-400 text-xs">
           {tLang('quizQuestion_counter', frozenLang)} {current + 1} / {questions.length}
         </div>
       </div>
 
-      {/* ── Main content ── */}
+      {/* Main content */}
       <div className="flex-1 overflow-hidden flex flex-col items-center justify-center px-4 pb-3 max-w-lg mx-auto w-full">
 
-        {/* Flag */}
         <div className="mb-3 rounded-xl overflow-hidden shadow-md border border-gray-100 bg-white flex-shrink-0">
           <img
             src={question.country.flag}
@@ -135,38 +123,27 @@ export default function MultipleChoice({ countries }) {
           />
         </div>
 
-        {/* Question */}
         <div className="text-center mb-3 flex-shrink-0">
-          <p className={`text-gray-500 ${isKids ? 'text-base' : 'text-xs'}`}>
-            {tLang('quizQuestion', frozenLang)}
-          </p>
+          <p className={`text-gray-500 ${isKids ? 'text-base' : 'text-xs'}`}>{tLang('quizQuestion', frozenLang)}</p>
           <h2 className={`font-extrabold text-gray-800 leading-tight ${isKids ? 'text-2xl' : 'text-xl'}`}>
             {question.country.name[frozenLang]}
           </h2>
         </div>
 
-        {/* Choices */}
         <div className="w-full space-y-2 flex-shrink-0">
           {question.choices.map((choice, i) => {
             const isSelected  = selected === choice.label
             const showCorrect = isAnswered && choice.isCorrect
             const showWrong   = isAnswered && isSelected && !choice.isCorrect
-
             let btnClass = 'bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50'
             if (showCorrect) btnClass = 'bg-green-500 border-2 border-green-500 text-white'
             if (showWrong)   btnClass = 'bg-red-400 border-2 border-red-400 text-white'
-
             return (
               <button
                 key={i}
                 onClick={() => handleAnswer(choice)}
                 disabled={isAnswered}
-                className={`
-                  w-full rounded-xl px-4 font-semibold transition-all duration-200
-                  ${isKids ? 'py-3 text-lg' : 'py-2.5 text-sm'}
-                  ${btnClass}
-                  ${isAnswered ? 'cursor-default' : 'cursor-pointer active:scale-95'}
-                `}
+                className={`w-full rounded-xl px-4 font-semibold transition-all duration-200 ${isKids ? 'py-3 text-lg' : 'py-2.5 text-sm'} ${btnClass} ${isAnswered ? 'cursor-default' : 'cursor-pointer active:scale-95'}`}
               >
                 {isAnswered && showCorrect && <span className="mr-2">✓</span>}
                 {isAnswered && showWrong   && <span className="mr-2">✗</span>}
@@ -176,7 +153,6 @@ export default function MultipleChoice({ countries }) {
           })}
         </div>
 
-        {/* Feedback + Next */}
         {isAnswered && (
           <div className="mt-3 w-full flex items-center gap-3 flex-shrink-0">
             <p className={`flex-1 font-bold ${isKids ? 'text-base' : 'text-sm'}`}>
@@ -187,11 +163,7 @@ export default function MultipleChoice({ countries }) {
             </p>
             <button
               onClick={handleNext}
-              className={`
-                rounded-xl font-bold text-white flex-shrink-0
-                bg-blue-500 hover:bg-blue-600 transition-all duration-200 active:scale-95
-                ${isKids ? 'px-5 py-3 text-base' : 'px-4 py-2.5 text-sm'}
-              `}
+              className={`rounded-xl font-bold text-white flex-shrink-0 bg-blue-500 hover:bg-blue-600 transition-all active:scale-95 ${isKids ? 'px-5 py-3 text-base' : 'px-4 py-2.5 text-sm'}`}
             >
               {isLastQ ? tLang('finish', frozenLang) : tLang('next', frozenLang)} →
             </button>
@@ -199,28 +171,18 @@ export default function MultipleChoice({ countries }) {
         )}
       </div>
 
-      {/* ── Exit dialog ── */}
+      {/* Exit dialog */}
       {showExitConfirm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full text-center">
             <div className="text-4xl mb-3">🚪</div>
-            <h3 className={`font-extrabold text-gray-800 mb-2 ${isKids ? 'text-2xl' : 'text-xl'}`}>
-              {tLang('exitTitle', frozenLang)}
-            </h3>
-            <p className={`text-gray-500 mb-6 ${isKids ? 'text-lg' : 'text-sm'}`}>
-              {tLang('exitMessage', frozenLang)}
-            </p>
+            <h3 className={`font-extrabold text-gray-800 mb-2 ${isKids ? 'text-2xl' : 'text-xl'}`}>{tLang('exitTitle', frozenLang)}</h3>
+            <p className={`text-gray-500 mb-6 ${isKids ? 'text-lg' : 'text-sm'}`}>{tLang('exitMessage', frozenLang)}</p>
             <div className="flex gap-3">
-              <button
-                onClick={() => setShowExitConfirm(false)}
-                className={`flex-1 rounded-xl font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all ${isKids ? 'py-4 text-lg' : 'py-3 text-base'}`}
-              >
+              <button onClick={() => setShowExitConfirm(false)} className={`flex-1 rounded-xl font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all ${isKids ? 'py-4 text-lg' : 'py-3 text-base'}`}>
                 {tLang('exitCancel', frozenLang)}
               </button>
-              <button
-                onClick={handleExitConfirmed}
-                className={`flex-1 rounded-xl font-bold text-white bg-red-400 hover:bg-red-500 transition-all ${isKids ? 'py-4 text-lg' : 'py-3 text-base'}`}
-              >
+              <button onClick={handleExitConfirmed} className={`flex-1 rounded-xl font-bold text-white bg-red-400 hover:bg-red-500 transition-all ${isKids ? 'py-4 text-lg' : 'py-3 text-base'}`}>
                 {tLang('exitConfirm', frozenLang)}
               </button>
             </div>

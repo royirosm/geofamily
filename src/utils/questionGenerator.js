@@ -3,42 +3,26 @@
 // When a progress map is supplied (from usePlayerProgress), questions are
 // weighted by SRS strength so weaker/newer countries appear more often.
 //
-// Weighting table:
-//   'new'    → weight 8  (high priority — introduce gradually)
-//   'weak'   → weight 6  (needs more practice)
-//   'medium' → weight 3  (seen but not solid)
-//   'strong' → weight 1  (mostly learned — still appears occasionally)
+// Weighting table (5-step scale):
+//   'new'        → weight 10  (never seen — highest priority)
+//   'beginner'   → weight 8
+//   'learner'    → weight 6
+//   'practising' → weight 4
+//   'advanced'   → weight 2
+//   'master'     → weight 1   (mostly learned — still appears occasionally)
 //
-// Without a progress map (guest / first run) all countries have equal weight.
-//
-// Each question has:
-//   - country:        the country being asked about
-//   - correctCapital: string
-//   - choices:        array of { label, isCorrect } — shuffled
-//
-// Usage:
-//   generateQuestions(countries, lang, ageMode, count)
-//   generateQuestions(countries, lang, ageMode, count, progressMap)
+// Without a progress map all countries have equal weight (treated as 'new').
+// capital field is { en, el } — always resolve to a string using lang.
 
-// ── Config ────────────────────────────────────────────────────────────────────
+import { STRENGTH_WEIGHTS } from '../hooks/usePlayerProgress'
 
-const STRENGTH_WEIGHTS = {
-  new:    8,
-  weak:   6,
-  medium: 3,
-  strong: 1,
-}
-
-// Countries considered "common" for Kids mode
-// (ISO 3166-1 alpha-3 codes from RestCountries)
+// Countries considered "common" for Kids mode (ISO 3166-1 alpha-2 codes)
 const COMMON_COUNTRIES = new Set([
-  'FRA','DEU','ITA','ESP','GBR','USA','CAN','BRA','ARG','MEX',
-  'RUS','CHN','JPN','IND','AUS','ZAF','EGY','NGA','KEN','MAR',
-  'GRC','CYP','TUR','ISR','SAU','ARE','THA','KOR','IDN','NZL',
-  'SWE','NOR','DNK','FIN','POL','NLD','BEL','CHE','AUT','PRT',
+  'FR','DE','IT','ES','GB','US','CA','BR','AR','MX',
+  'RU','CN','JP','IN','AU','ZA','EG','NG','KE','MA',
+  'GR','CY','TR','IL','SA','AE','TH','KR','ID','NZ',
+  'SE','NO','DK','FI','PL','NL','BE','CH','AT','PT',
 ])
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function shuffle(arr) {
   const a = [...arr]
@@ -49,12 +33,10 @@ function shuffle(arr) {
   return a
 }
 
-// Weighted random selection — picks `count` unique items from `pool`
-// Each item in pool: { item, weight }
+// Weighted random selection — picks `count` unique items from pool
 function weightedSample(pool, count) {
-  const selected = []
+  const selected  = []
   const remaining = [...pool]
-
   for (let i = 0; i < count && remaining.length > 0; i++) {
     const totalWeight = remaining.reduce((sum, e) => sum + e.weight, 0)
     let rand = Math.random() * totalWeight
@@ -66,18 +48,23 @@ function weightedSample(pool, count) {
     selected.push(remaining[idx].item)
     remaining.splice(idx, 1)
   }
-
   return selected
 }
-
-// ── Main export ───────────────────────────────────────────────────────────────
 
 export function generateQuestions(countries, lang, ageMode, count, progressMap = {}) {
   const isKids = ageMode === 'kids'
   const choicesPerQuestion = isKids ? 3 : 4
 
-  // 1. Filter countries — Kids mode uses common set only; Explorer uses all
-  //    Also require: has a capital and a flag
+  // Resolve capital to a display string — capital is { en, el } object
+  function cap(country) {
+    if (!country.capital) return ''
+    if (typeof country.capital === 'object') {
+      return country.capital[lang] ?? country.capital.en ?? ''
+    }
+    return country.capital
+  }
+
+  // Filter — must have capital + flag; Kids mode uses common set only
   const eligible = countries.filter(c =>
     c.capital &&
     c.flag &&
@@ -86,32 +73,25 @@ export function generateQuestions(countries, lang, ageMode, count, progressMap =
 
   if (eligible.length < choicesPerQuestion) return []
 
-  // 2. Build weighted pool for question selection
+  // Build weighted pool
   const pool = eligible.map(country => {
     const record   = progressMap[country.code]
     const strength = record?.strength ?? 'new'
     return { item: country, weight: STRENGTH_WEIGHTS[strength] }
   })
 
-  // 3. Sample `count` countries (weighted, no duplicates)
-  const actualCount   = Math.min(count, eligible.length)
+  // Sample countries weighted by weakness
+  const actualCount       = Math.min(count, eligible.length)
   const selectedCountries = weightedSample(pool, actualCount)
 
-  // 4. Build questions
+  // Build question objects
   return selectedCountries.map(country => {
-    // Wrong choices: random sample from eligible (excluding correct country)
     const others  = eligible.filter(c => c.code !== country.code)
     const wrongs  = shuffle(others).slice(0, choicesPerQuestion - 1)
-
     const choices = shuffle([
-      { label: country.capital, isCorrect: true },
-      ...wrongs.map(c => ({ label: c.capital, isCorrect: false })),
+      { label: cap(country), isCorrect: true },
+      ...wrongs.map(c => ({ label: cap(c), isCorrect: false })),
     ])
-
-    return {
-      country,
-      correctCapital: country.capital,
-      choices,
-    }
+    return { country, correctCapital: cap(country), choices }
   })
 }

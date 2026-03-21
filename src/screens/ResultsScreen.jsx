@@ -1,7 +1,7 @@
 // ResultsScreen.jsx
 // Shown after finishing a quiz round.
-// On mount, calls recordRound() to persist the player's answers to the SRS engine.
-// Displays: circular score ring, message, full question breakdown, play again / home buttons.
+// Calls recordRound(answers, score, total) with the correct moduleId
+// so SRS scores and round history are saved per module.
 
 import { useEffect, useRef }        from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -15,25 +15,26 @@ export default function ResultsScreen() {
 
   const { lang: liveLang, tLang } = useLanguage()
   const { ageMode: liveAgeMode }  = useAgeMode()
-  const { recordRound }           = usePlayerProgress()
 
-  const score         = location.state?.score   ?? 0
-  const total         = location.state?.total   ?? 10
-  const answers       = location.state?.answers ?? []
-  const frozenLang    = location.state?.lang    ?? liveLang
-  const frozenAgeMode = location.state?.ageMode ?? liveAgeMode
+  const score         = location.state?.score    ?? 0
+  const total         = location.state?.total    ?? 10
+  const answers       = location.state?.answers  ?? []
+  const frozenLang    = location.state?.lang     ?? liveLang
+  const frozenAgeMode = location.state?.ageMode  ?? liveAgeMode
+  const moduleId      = location.state?.moduleId ?? 'capitals'
   const isKids        = frozenAgeMode === 'kids'
 
-  const percentage = Math.round((score / total) * 100)
+  const { recordRound } = usePlayerProgress(moduleId)
 
-  // Record SRS scores once when the screen mounts — run exactly once per round
   const recorded = useRef(false)
   useEffect(() => {
     if (!recorded.current && answers.length > 0) {
       recorded.current = true
-      recordRound(answers)
+      recordRound(answers, score, total)
     }
-  }, [answers, recordRound])
+  }, [answers, score, total, recordRound])
+
+  const percentage = Math.round((score / total) * 100)
 
   function getMessage() {
     if (percentage === 100) return tLang('resultsPerfect', frozenLang)
@@ -42,17 +43,6 @@ export default function ResultsScreen() {
     return tLang('resultsKeepTrying', frozenLang)
   }
 
-  function handlePlayAgain() {
-    navigate('/quiz/capitals', {
-      state: { lang: frozenLang, ageMode: frozenAgeMode },
-    })
-  }
-
-  function handleHome() {
-    navigate('/')
-  }
-
-  // Circular score ring
   const radius        = 54
   const circumference = 2 * Math.PI * radius
   const offset        = circumference - (percentage / 100) * circumference
@@ -64,27 +54,16 @@ export default function ResultsScreen() {
 
         {/* Score card */}
         <div className="bg-white rounded-3xl shadow-xl p-8 text-center">
-
-          {/* Circular score */}
           <div className="flex justify-center mb-6">
             <div className="relative w-36 h-36">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
                 <circle cx="60" cy="60" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="10" />
-                <circle
-                  cx="60" cy="60" r={radius}
-                  fill="none"
-                  stroke={ringColor}
-                  strokeWidth="10"
-                  strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={offset}
-                  className="transition-all duration-1000"
-                />
+                <circle cx="60" cy="60" r={radius} fill="none" stroke={ringColor} strokeWidth="10"
+                  strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset}
+                  className="transition-all duration-1000" />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className={`font-extrabold text-gray-800 ${isKids ? 'text-4xl' : 'text-3xl'}`}>
-                  {score}
-                </span>
+                <span className={`font-extrabold text-gray-800 ${isKids ? 'text-4xl' : 'text-3xl'}`}>{score}</span>
                 <span className="text-gray-400 text-sm">/ {total}</span>
               </div>
             </div>
@@ -93,20 +72,17 @@ export default function ResultsScreen() {
           <h2 className={`font-extrabold text-gray-800 mb-2 ${isKids ? 'text-3xl' : 'text-2xl'}`}>
             {tLang('resultsTitle', frozenLang)}
           </h2>
-          <p className={`text-gray-500 mb-8 ${isKids ? 'text-xl' : 'text-base'}`}>
-            {getMessage()}
-          </p>
+          <p className={`text-gray-500 mb-8 ${isKids ? 'text-xl' : 'text-base'}`}>{getMessage()}</p>
 
-          {/* Buttons */}
           <div className="space-y-3">
             <button
-              onClick={handlePlayAgain}
+              onClick={() => navigate('/quiz/capitals', { state: { lang: frozenLang, ageMode: frozenAgeMode } })}
               className={`w-full rounded-xl font-bold text-white bg-blue-500 hover:bg-blue-600 transition-all active:scale-95 ${isKids ? 'py-4 text-xl' : 'py-3 text-base'}`}
             >
               🔄 {tLang('tryAgain', frozenLang)}
             </button>
             <button
-              onClick={handleHome}
+              onClick={() => navigate('/')}
               className={`w-full rounded-xl font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all active:scale-95 ${isKids ? 'py-4 text-xl' : 'py-3 text-base'}`}
             >
               🏠 {tLang('home', frozenLang)}
@@ -126,41 +102,25 @@ export default function ResultsScreen() {
               {answers.map((answer, i) => {
                 const country = answer.question.country
                 const correct = answer.correct
-
                 return (
-                  <div
-                    key={i}
-                    className={`flex items-center gap-4 px-6 py-4 ${correct ? 'bg-white' : 'bg-red-50'}`}
-                  >
-                    <img
-                      src={country.flag}
-                      alt={country.name[frozenLang]}
-                      className="w-12 h-8 object-cover rounded-md shadow-sm flex-shrink-0"
-                    />
+                  <div key={i} className={`flex items-center gap-4 px-6 py-4 ${correct ? 'bg-white' : 'bg-red-50'}`}>
+                    <img src={country.flag} alt={country.name[frozenLang]} className="w-12 h-8 object-cover rounded-md shadow-sm flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className={`font-semibold text-gray-800 truncate ${isKids ? 'text-lg' : 'text-sm'}`}>
                         {country.name[frozenLang]}
                       </p>
-                      {correct ? (
-                        <p className={`text-green-600 ${isKids ? 'text-base' : 'text-xs'}`}>
-                          ✓ {answer.chosen}
-                        </p>
-                      ) : (
-                        <p className={`text-red-500 ${isKids ? 'text-base' : 'text-xs'}`}>
-                          ✗ {answer.chosen} → <strong>{answer.question.correctCapital}</strong>
-                        </p>
-                      )}
+                      {correct
+                        ? <p className={`text-green-600 ${isKids ? 'text-base' : 'text-xs'}`}>✓ {answer.chosen}</p>
+                        : <p className={`text-red-500 ${isKids ? 'text-base' : 'text-xs'}`}>✗ {answer.chosen} → <strong>{answer.question.correctCapital}</strong></p>
+                      }
                     </div>
-                    <span className="text-xl flex-shrink-0">
-                      {correct ? '✅' : '❌'}
-                    </span>
+                    <span className="text-xl flex-shrink-0">{correct ? '✅' : '❌'}</span>
                   </div>
                 )
               })}
             </div>
           </div>
         )}
-
       </div>
     </div>
   )
