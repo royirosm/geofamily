@@ -57,6 +57,20 @@ const translations = {
     el: 'Εξερευνητής',
   },
 
+  // --- Settings ---
+  settings: {
+    en: 'Settings',
+    el: 'Ρυθμίσεις',
+  },
+  settingsQuestionsPerRound: {
+    en: 'Questions per round',
+    el: 'Ερωτήσεις ανά γύρο',
+  },
+  settingsDone: {
+    en: 'Done',
+    el: 'Εντάξει',
+  },
+
   // --- Home screen ---
   homeTitle: {
     en: 'Learn Geography',
@@ -95,7 +109,6 @@ const translations = {
     el: 'Ποια είναι η πρωτεύουσα της',
   },
   quizQuestionOf: {
-    // Used for languages where word order differs
     en: 'of',
     el: 'της',
   },
@@ -108,8 +121,8 @@ const translations = {
     el: 'Όχι ακριβώς!',
   },
   quizCorrectAnswer: {
-    en: 'The answer was',
-    el: 'Η απάντηση ήταν',
+    en: 'Answer:',
+    el: 'Απάντηση:',
   },
   quizStreak: {
     en: 'Streak',
@@ -120,8 +133,32 @@ const translations = {
     el: 'Σκορ',
   },
   quizQuestion_counter: {
-    en: 'Question',
-    el: 'Ερώτηση',
+    en: 'Q',
+    el: 'Ε',
+  },
+
+  // --- Exit button label (in quiz top bar) ---
+  exitButtonLabel: {
+    en: 'Quit',
+    el: 'Έξοδος',
+  },
+
+  // --- Exit dialog ---
+  exitTitle: {
+    en: 'Quit the game?',
+    el: 'Έξοδος από το παιχνίδι;',
+  },
+  exitMessage: {
+    en: 'Your progress will be lost.',
+    el: 'Η πρόοδός σου θα χαθεί.',
+  },
+  exitCancel: {
+    en: 'Keep playing',
+    el: 'Συνέχεια',
+  },
+  exitConfirm: {
+    en: 'Quit',
+    el: 'Έξοδος',
   },
 
   // --- Results screen ---
@@ -150,8 +187,12 @@ const translations = {
     el: 'Καλή προσπάθεια! Η εξάσκηση φέρνει τελειότητα! 💪',
   },
   resultsKeepTrying: {
-    en: 'Keep trying, you\'ll get there! 😊',
+    en: "Keep trying, you'll get there! 😊",
     el: 'Συνέχισε να προσπαθείς, θα τα καταφέρεις! 😊',
+  },
+  resultsReview: {
+    en: 'Review',
+    el: 'Ανασκόπηση',
   },
 
   // --- Regions (for filtering) ---
@@ -178,29 +219,6 @@ const translations = {
   regionOceania: {
     en: 'Oceania',
     el: 'Ωκεανία',
-  },
-
-  resultsReview: {
-    en: 'Review',
-    el: 'Ανασκόπηση',
-  },
-
-  // --- Exit dialog ---
-  exitTitle: {
-    en: 'Quit the game?',
-    el: 'Έξοδος από το παιχνίδι;',
-  },
-  exitMessage: {
-    en: 'Your progress will be lost.',
-    el: 'Η πρόοδός σου θα χαθεί.',
-  },
-  exitCancel: {
-    en: 'Keep playing',
-    el: 'Συνέχεια',
-  },
-  exitConfirm: {
-    en: 'Quit',
-    el: 'Έξοδος',
   },
 
 }

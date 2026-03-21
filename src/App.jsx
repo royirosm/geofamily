@@ -1,17 +1,19 @@
 // App.jsx
 // Root component. Uses React Router for navigation between screens.
+// Providers (outermost → innermost): LanguageProvider → AgeModeProvider → SettingsProvider
 // Routes:
 //   /                → HomeScreen
 //   /quiz/capitals   → MultipleChoice (Capitals module)
 //   /results         → ResultsScreen
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { useCountries } from './hooks/useCountries'
-import { useLanguage }  from './context/LanguageContext'
-import Navbar           from './components/Navbar'
-import HomeScreen       from './screens/HomeScreen'
-import MultipleChoice   from './modules/capitals/MultipleChoice'
-import ResultsScreen    from './screens/ResultsScreen'
+import { useCountries }    from './hooks/useCountries'
+import { useLanguage }     from './context/LanguageContext'
+import { SettingsProvider } from './context/SettingsContext'
+import Navbar              from './components/Navbar'
+import HomeScreen          from './screens/HomeScreen'
+import MultipleChoice      from './modules/capitals/MultipleChoice'
+import ResultsScreen       from './screens/ResultsScreen'
 
 function AppContent() {
   const { countries, loading, error } = useCountries()
@@ -55,7 +57,9 @@ function AppContent() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppContent />
+      <SettingsProvider>
+        <AppContent />
+      </SettingsProvider>
     </BrowserRouter>
   )
 }

@@ -1,15 +1,16 @@
 // MultipleChoice.jsx
 // Capitals quiz screen.
 // Reads lang + ageMode from route state (frozen at quiz start by HomeScreen).
-// Includes an exit button with confirm dialog to return to home.
+// Reads questionsPerRound from SettingsContext.
+// Designed to fit entirely on one mobile screen — no scrolling needed.
+// Exit button is a clearly visible red pill. Confirm dialog prevents accidents.
 
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate }    from 'react-router-dom'
 import { useLanguage }                 from '../../context/LanguageContext'
 import { useAgeMode }                  from '../../context/AgeModeContext'
+import { useSettings }                 from '../../context/SettingsContext'
 import { generateQuestions }           from '../../utils/questionGenerator'
-
-const QUESTIONS_PER_ROUND = 10
 
 export default function MultipleChoice({ countries }) {
   const location = useLocation()
@@ -17,6 +18,8 @@ export default function MultipleChoice({ countries }) {
 
   const { lang: liveLang, tLang }  = useLanguage()
   const { ageMode: liveAgeMode }   = useAgeMode()
+  const { questionsPerRound }      = useSettings()
+
   const frozenLang    = location.state?.lang    ?? liveLang
   const frozenAgeMode = location.state?.ageMode ?? liveAgeMode
   const isKids        = frozenAgeMode === 'kids'
@@ -34,9 +37,9 @@ export default function MultipleChoice({ countries }) {
   useEffect(() => {
     if (countries.length > 0 && !generated.current) {
       generated.current = true
-      setQuestions(generateQuestions(countries, frozenLang, frozenAgeMode, QUESTIONS_PER_ROUND))
+      setQuestions(generateQuestions(countries, frozenLang, frozenAgeMode, questionsPerRound))
     }
-  }, [countries, frozenLang, frozenAgeMode])
+  }, [countries, frozenLang, frozenAgeMode, questionsPerRound])
 
   if (questions.length === 0) {
     return (
@@ -76,25 +79,29 @@ export default function MultipleChoice({ countries }) {
     navigate('/')
   }
 
-  const progress = (current / questions.length) * 100
+  const progress = ((current + (isAnswered ? 1 : 0)) / questions.length) * 100
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col">
+    // h-[100dvh] — uses dynamic viewport height on mobile (accounts for browser chrome)
+    // overflow-hidden — prevents any scrolling; everything must fit
+    <div className="h-[100dvh] overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col">
 
-      {/* Progress bar + counter + exit button */}
-      <div className="w-full px-4 pt-4">
+      {/* ── Top bar: progress + exit ── */}
+      <div className="w-full px-4 pt-3 pb-2 flex-shrink-0">
         <div className="flex justify-between items-center mb-2">
 
-          {/* Exit button */}
+          {/* Exit button — clearly visible red pill */}
           <button
             onClick={() => setShowExitConfirm(true)}
-            className={`
-              flex items-center gap-1 text-gray-400 hover:text-red-400
+            className="
+              flex items-center gap-1.5 px-3 py-1.5
+              bg-red-100 hover:bg-red-200 text-red-600 hover:text-red-700
+              rounded-full text-sm font-semibold
               transition-colors duration-200
-              ${isKids ? 'text-base' : 'text-sm'}
-            `}
+            "
           >
-            ✕ {tLang('back', frozenLang)}
+            <span className="text-xs">✕</span>
+            {tLang('exitButtonLabel', frozenLang)}
           </button>
 
           {/* Score + streak */}
@@ -107,48 +114,50 @@ export default function MultipleChoice({ countries }) {
         </div>
 
         {/* Progress bar */}
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="w-full bg-gray-200 rounded-full h-1.5">
           <div
-            className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+            className="bg-blue-500 h-1.5 rounded-full transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>
 
-        {/* Question counter below bar */}
-        <div className={`text-center mt-1 text-gray-400 ${isKids ? 'text-sm' : 'text-xs'}`}>
+        {/* Question counter */}
+        <div className={`text-center mt-1 text-gray-400 ${isKids ? 'text-xs' : 'text-xs'}`}>
           {tLang('quizQuestion_counter', frozenLang)} {current + 1} / {questions.length}
         </div>
       </div>
 
-      {/* Question card */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-6 max-w-lg mx-auto w-full">
+      {/* ── Main content: flag + question + choices ── */}
+      {/* flex-1 + overflow-hidden keeps it inside the viewport */}
+      <div className="flex-1 overflow-hidden flex flex-col items-center justify-center px-4 pb-3 max-w-lg mx-auto w-full">
 
-        {/* Flag */}
-        <div className="mb-6 rounded-2xl overflow-hidden shadow-lg border border-gray-100 bg-white">
+        {/* Flag — smaller on mobile to save vertical space */}
+        <div className="mb-3 rounded-xl overflow-hidden shadow-md border border-gray-100 bg-white flex-shrink-0">
           <img
             src={question.country.flag}
             alt={`Flag of ${question.country.name[frozenLang]}`}
-            className={`object-cover ${isKids ? 'w-48 h-32' : 'w-40 h-28'}`}
+            className={`object-cover ${isKids ? 'w-44 h-28' : 'w-36 h-24'}`}
           />
         </div>
 
         {/* Question text */}
-        <div className="text-center mb-8">
-          <p className={`text-gray-500 mb-1 ${isKids ? 'text-lg' : 'text-sm'}`}>
+        <div className="text-center mb-3 flex-shrink-0">
+          <p className={`text-gray-500 ${isKids ? 'text-base' : 'text-xs'}`}>
             {tLang('quizQuestion', frozenLang)}
           </p>
-          <h2 className={`font-extrabold text-gray-800 ${isKids ? 'text-3xl' : 'text-2xl'}`}>
+          <h2 className={`font-extrabold text-gray-800 leading-tight ${isKids ? 'text-2xl' : 'text-xl'}`}>
             {question.country.name[frozenLang]}
           </h2>
         </div>
 
         {/* Answer choices */}
-        <div className="w-full space-y-3">
+        <div className="w-full space-y-2 flex-shrink-0">
           {question.choices.map((choice, i) => {
             const isSelected  = selected === choice.label
             const showCorrect = isAnswered && choice.isCorrect
             const showWrong   = isAnswered && isSelected && !choice.isCorrect
 
+            // Inline feedback: the chosen wrong button turns red, correct turns green
             let btnClass = 'bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50'
             if (showCorrect) btnClass = 'bg-green-500 border-2 border-green-500 text-white'
             if (showWrong)   btnClass = 'bg-red-400 border-2 border-red-400 text-white'
@@ -159,39 +168,45 @@ export default function MultipleChoice({ countries }) {
                 onClick={() => handleAnswer(choice)}
                 disabled={isAnswered}
                 className={`
-                  w-full rounded-xl px-5 font-semibold
+                  w-full rounded-xl px-4 font-semibold
                   transition-all duration-200
-                  ${isKids ? 'py-4 text-xl' : 'py-3 text-base'}
+                  ${isKids ? 'py-3 text-lg' : 'py-2.5 text-sm'}
                   ${btnClass}
                   ${isAnswered ? 'cursor-default' : 'cursor-pointer active:scale-95'}
                 `}
               >
+                {/* Show checkmark/cross inline on answered buttons */}
+                {isAnswered && showCorrect && <span className="mr-2">✓</span>}
+                {isAnswered && showWrong   && <span className="mr-2">✗</span>}
                 {choice.label}
               </button>
             )
           })}
         </div>
 
-        {/* Feedback + Next */}
+        {/* Feedback + Next — appears after answering, inline below choices */}
         {isAnswered && (
-          <div className="mt-6 w-full text-center animate-fade-in">
-            <p className={`font-bold mb-4 ${isKids ? 'text-2xl' : 'text-lg'}`}>
+          <div className="mt-3 w-full flex items-center gap-3 flex-shrink-0">
+            {/* Feedback text — compact, left-aligned */}
+            <p className={`flex-1 font-bold ${isKids ? 'text-base' : 'text-sm'}`}>
               {answers[answers.length - 1]?.correct
                 ? <span className="text-green-600">{tLang('quizCorrect', frozenLang)}</span>
                 : (
                   <span className="text-red-500">
-                    {tLang('quizWrong', frozenLang)} {tLang('quizCorrectAnswer', frozenLang)}: <strong>{question.correctCapital}</strong>
+                    {tLang('quizCorrectAnswer', frozenLang)}: <strong>{question.correctCapital}</strong>
                   </span>
                 )
               }
             </p>
+
+            {/* Next / Finish button — right side, compact */}
             <button
               onClick={handleNext}
               className={`
-                w-full rounded-xl font-bold text-white
+                rounded-xl font-bold text-white flex-shrink-0
                 bg-blue-500 hover:bg-blue-600
                 transition-all duration-200 active:scale-95
-                ${isKids ? 'py-4 text-xl' : 'py-3 text-base'}
+                ${isKids ? 'px-5 py-3 text-base' : 'px-4 py-2.5 text-sm'}
               `}
             >
               {isLastQ ? tLang('finish', frozenLang) : tLang('next', frozenLang)} →
@@ -200,7 +215,7 @@ export default function MultipleChoice({ countries }) {
         )}
       </div>
 
-      {/* Exit confirm dialog */}
+      {/* ── Exit confirm dialog ── */}
       {showExitConfirm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full text-center">
