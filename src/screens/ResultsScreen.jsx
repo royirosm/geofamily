@@ -1,19 +1,22 @@
 // ResultsScreen.jsx
-// Shows score + per-question review after a quiz round.
-// Phase 3: uses <FlagImage> in the review breakdown for offline fallback.
-// Records the round via usePlayerProgress on mount.
+// Phase 4: passes mode to recordRound() and pushScore().
 
-import { useEffect, useRef }    from 'react'
+import { useEffect, useRef }        from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useLanguage }          from '../context/LanguageContext'
-import { useAgeMode }           from '../context/AgeModeContext'
-import { usePlayerProgress }    from '../hooks/usePlayerProgress'
-import FlagImage                from '../components/FlagImage'
+import { useLanguage }              from '../context/LanguageContext'
+import { useAgeMode }               from '../context/AgeModeContext'
+import { usePlayer }                from '../context/PlayerContext'
+import { usePlayerProgress,
+         getStatsForPlayer,
+         getLevelForPlayer }        from '../hooks/usePlayerProgress'
+import { useLeaderboard }           from '../hooks/useLeaderboard'
+import FlagImage                    from '../components/FlagImage'
 
 export default function ResultsScreen() {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const { tLang } = useLanguage()
+  const location       = useLocation()
+  const navigate       = useNavigate()
+  const { tLang }      = useLanguage()
+  const { activePlayer } = usePlayer()
 
   const {
     score     = 0,
@@ -22,26 +25,39 @@ export default function ResultsScreen() {
     lang:     frozenLang    = 'en',
     ageMode:  frozenAgeMode = 'explorer',
     moduleId  = 'capitals',
+    mode      = 'multiple-choice',
   } = location.state ?? {}
 
   const isKids = frozenAgeMode === 'kids'
   const pct    = total > 0 ? Math.round((score / total) * 100) : 0
 
   const { recordRound } = usePlayerProgress(moduleId)
+  const { pushScore }   = useLeaderboard()
   const recorded        = useRef(false)
 
   useEffect(() => {
     if (!recorded.current && answers.length > 0) {
       recorded.current = true
-      recordRound(answers, score, total)
+
+      // 1. Save locally — pass mode so history entry is tagged
+      recordRound(answers, score, total, mode)
+
+      // 2. Push to Firebase after localStorage settles
+      if (activePlayer) {
+        setTimeout(() => {
+          const stats = getStatsForPlayer(activePlayer.id)
+          const level = getLevelForPlayer(activePlayer.id)
+          pushScore(activePlayer, stats, level, moduleId, mode)
+        }, 100)
+      }
     }
-  }, [answers, score, total, recordRound])
+  }, [answers, score, total, mode, recordRound, pushScore, activePlayer, moduleId])
 
   function getMessage() {
-    if (pct === 100) return tLang('resultsPerfect',    frozenLang)
-    if (pct >= 70)  return tLang('resultsGreat',       frozenLang)
-    if (pct >= 40)  return tLang('resultsGood',        frozenLang)
-    return                 tLang('resultsKeepTrying',  frozenLang)
+    if (pct === 100) return tLang('resultsPerfect',   frozenLang)
+    if (pct >= 70)  return tLang('resultsGreat',      frozenLang)
+    if (pct >= 40)  return tLang('resultsGood',       frozenLang)
+    return                 tLang('resultsKeepTrying', frozenLang)
   }
 
   const circumference = 2 * Math.PI * 40
@@ -58,10 +74,8 @@ export default function ResultsScreen() {
             <circle
               cx="50" cy="50" r="40" fill="none"
               stroke={pct >= 70 ? '#22c55e' : pct >= 40 ? '#f59e0b' : '#ef4444'}
-              strokeWidth="10"
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeOffset}
+              strokeWidth="10" strokeLinecap="round"
+              strokeDasharray={circumference} strokeDashoffset={strokeOffset}
               className="transition-all duration-700"
             />
           </svg>
@@ -69,66 +83,73 @@ export default function ResultsScreen() {
             <span className={`font-extrabold text-gray-800 ${isKids ? 'text-5xl' : 'text-4xl'}`}>{score}</span>
             <span className="text-gray-400 text-sm"> / {total}</span>
           </div>
-          <h2 className={`font-extrabold text-gray-800 mb-2 ${isKids ? 'text-3xl' : 'text-2xl'}`}>
-            {tLang('resultsTitle', frozenLang)}
+          <h2 className={`font-extrabold text-gray-800 mb-2 ${isKids ? 'text-2xl' : 'text-xl'}`}>
+            {getMessage()}
           </h2>
-          <p className={`text-gray-500 mb-8 ${isKids ? 'text-xl' : 'text-base'}`}>{getMessage()}</p>
-
-          <div className="space-y-3">
-            <button
-              onClick={() => navigate('/quiz/capitals', { state: { lang: frozenLang, ageMode: frozenAgeMode } })}
-              className={`w-full rounded-xl font-bold text-white bg-blue-500 hover:bg-blue-600 transition-all active:scale-95 ${isKids ? 'py-4 text-xl' : 'py-3 text-base'}`}
-            >
-              🔄 {tLang('tryAgain', frozenLang)}
-            </button>
-            <button
-              onClick={() => navigate('/')}
-              className={`w-full rounded-xl font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all active:scale-95 ${isKids ? 'py-4 text-xl' : 'py-3 text-base'}`}
-            >
-              🏠 {tLang('home', frozenLang)}
-            </button>
-          </div>
+          <p className="text-gray-400 text-sm">{pct}%</p>
         </div>
 
-        {/* Question breakdown */}
+        {/* Action buttons */}
+        <div className="flex gap-3">
+          <button
+            onClick={() => navigate('/')}
+            className={`flex-1 rounded-2xl font-bold bg-white border-2 border-gray-200 text-gray-600 hover:bg-gray-50 transition-all ${isKids ? 'py-4 text-lg' : 'py-3 text-sm'}`}
+          >
+            🏠 {tLang('home', frozenLang)}
+          </button>
+          <button
+            onClick={() => navigate(`/quiz/${moduleId}`, { state: { lang: frozenLang, ageMode: frozenAgeMode } })}
+            className={`flex-1 rounded-2xl font-bold bg-blue-500 hover:bg-blue-600 text-white transition-all ${isKids ? 'py-4 text-lg' : 'py-3 text-sm'}`}
+          >
+            🔄 {tLang('tryAgain', frozenLang)}
+          </button>
+        </div>
+
+        {/* Per-question review */}
         {answers.length > 0 && (
           <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100">
-              <h3 className={`font-bold text-gray-700 ${isKids ? 'text-xl' : 'text-base'}`}>
+              <h3 className={`font-extrabold text-gray-800 ${isKids ? 'text-xl' : 'text-base'}`}>
                 {tLang('resultsReview', frozenLang)}
               </h3>
             </div>
             <div className="divide-y divide-gray-50">
-              {answers.map((answer, i) => {
-                const country = answer.question.country
-                const correct = answer.correct
+              {answers.map((ans, i) => {
+                const country = ans.question.country
                 return (
-                  <div key={i} className={`flex items-center gap-4 px-6 py-4 ${correct ? 'bg-white' : 'bg-red-50'}`}>
-                    {/* FlagImage with fallback */}
-                    <div className="flex-shrink-0">
-                      <FlagImage
-                        src={country.flag}
-                        alt={country.name[frozenLang]}
-                        className="w-12 h-8"
-                        isKids={isKids}
-                      />
-                    </div>
+                  <div key={i} className="flex items-center gap-3 px-4 py-3">
+                    <FlagImage
+                      src={country.flag}
+                      alt={country.name[frozenLang]}
+                      className="w-12 h-8 object-cover rounded shadow-sm flex-shrink-0"
+                      isKids={isKids}
+                    />
                     <div className="flex-1 min-w-0">
-                      <p className={`font-semibold text-gray-800 truncate ${isKids ? 'text-lg' : 'text-sm'}`}>
-                        {country.name[frozenLang]}
+                      <p className={`font-semibold text-gray-800 truncate ${isKids ? 'text-base' : 'text-sm'}`}>
+                        {country.name[frozenLang] ?? country.name.en}
                       </p>
-                      {correct
-                        ? <p className={`text-green-600 ${isKids ? 'text-base' : 'text-xs'}`}>✓ {answer.chosen}</p>
-                        : <p className={`text-red-500 ${isKids ? 'text-base' : 'text-xs'}`}>✗ {answer.chosen} → <strong>{answer.question.correctCapital}</strong></p>
+                      <p className={`text-gray-400 truncate ${isKids ? 'text-sm' : 'text-xs'}`}>
+                        {ans.question.correctCapital}
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0">
+                      {ans.correct
+                        ? <span className="text-green-500 font-bold text-lg">✓</span>
+                        : <div className="text-right">
+                            <span className="text-red-400 font-bold text-lg">✗</span>
+                            <p className={`text-red-400 ${isKids ? 'text-xs' : 'text-[10px]'} max-w-[80px] truncate`}>
+                              {ans.chosen}
+                            </p>
+                          </div>
                       }
                     </div>
-                    <span className="text-xl flex-shrink-0">{correct ? '✅' : '❌'}</span>
                   </div>
                 )
               })}
             </div>
           </div>
         )}
+
       </div>
     </div>
   )

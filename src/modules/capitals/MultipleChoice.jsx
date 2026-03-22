@@ -1,6 +1,6 @@
 // MultipleChoice.jsx
-// Capitals quiz screen.
-// Phase 3: uses <FlagImage> instead of raw <img> for graceful offline fallback.
+// Capitals quiz — Multiple Choice mode.
+// Phase 4: passes mode: 'multiple-choice' in navigate state to ResultsScreen.
 
 import { useState, useEffect, useRef }  from 'react'
 import { useLocation, useNavigate }     from 'react-router-dom'
@@ -12,6 +12,7 @@ import { generateQuestions }            from '../../utils/questionGenerator'
 import FlagImage                        from '../../components/FlagImage'
 
 const MODULE_ID = 'capitals'
+const MODE      = 'multiple-choice'
 
 export default function MultipleChoice({ countries }) {
   const location = useLocation()
@@ -75,6 +76,7 @@ export default function MultipleChoice({ countries }) {
           lang:     frozenLang,
           ageMode:  frozenAgeMode,
           moduleId: MODULE_ID,
+          mode:     MODE,           // ← passed to ResultsScreen
         },
       })
     } else {
@@ -116,7 +118,6 @@ export default function MultipleChoice({ countries }) {
       {/* Main content */}
       <div className="flex-1 overflow-hidden flex flex-col items-center justify-center px-4 pb-3 max-w-lg mx-auto w-full">
 
-        {/* Flag — uses FlagImage for offline fallback */}
         <div className="mb-3 rounded-xl overflow-hidden shadow-md border border-gray-100 bg-white flex-shrink-0">
           <FlagImage
             src={question.country.flag}

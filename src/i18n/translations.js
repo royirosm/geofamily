@@ -161,6 +161,44 @@ const translations = {
   // --- Filter ---
   filterAll: { en: 'All', el: 'Όλα' },
 
+  // --- Family code (Settings modal) ---
+  settingsFamilyCode:            { en: 'Family Code',                                     el: 'Κωδικός Οικογένειας' },
+  settingsFamilyCodeHint:        { en: 'Share this code with family members so your scores appear on the same leaderboard.', el: 'Μοιράσου αυτόν τον κωδικό με την οικογένειά σου για να εμφανίζεστε στο ίδιο leaderboard.' },
+  settingsFamilyCodePlaceholder: { en: 'e.g. LION-42',                                    el: 'π.χ. LION-42' },
+  settingsFamilyCodeSave:        { en: 'Save',                                             el: 'Αποθήκευση' },
+  settingsFamilyCodeGenerate:    { en: 'Generate a code for me',                           el: 'Δημιούργησε κωδικό' },
+  settingsFamilyCodeClear:       { en: 'Leave family',                                     el: 'Αποχώρηση' },
+  settingsFamilyCodeActive:      { en: 'Active',                                           el: 'Ενεργός' },
+  settingsFamilyCodeCurrent:     { en: 'Your family code',                                 el: 'Κωδικός οικογένειάς σου' },
+  settingsFamilyCodeTooShort:    { en: 'Code must be at least 3 characters',               el: 'Ο κωδικός πρέπει να έχει τουλάχιστον 3 χαρακτήρες' },
+
+  // --- Leaderboard screen ---
+  leaderboardTitle:       { en: 'Leaderboard',                  el: 'Κατάταξη' },
+  leaderboardTabFamily:   { en: 'Family',                       el: 'Οικογένεια' },
+  leaderboardTabGlobal:   { en: 'Global',                       el: 'Παγκόσμιο' },
+  leaderboardEmpty:       { en: 'No scores yet — play a round!', el: 'Δεν υπάρχουν σκορ ακόμα — παίξε έναν γύρο!' },
+  leaderboardNoFamily:    { en: 'Set a family code in Settings to see your family leaderboard.', el: 'Ορίσε κωδικό οικογένειας στις Ρυθμίσεις για να δεις την κατάταξη της οικογένειάς σου.' },
+  leaderboardRounds:      { en: 'rounds',                       el: 'γύροι' },
+  leaderboardYou:         { en: 'You',                          el: 'Εσύ' },
+  leaderboardGoSettings:  { en: 'Go to Settings',               el: 'Άνοιξε Ρυθμίσεις' },
+  leaderboardLoading:     { en: 'Loading scores…',              el: 'Φόρτωση σκορ…' },
+  leaderboardError:       { en: 'Could not load scores. Check your connection.', el: 'Δεν ήταν δυνατή η φόρτωση. Έλεγξε τη σύνδεσή σου.' },
+  leaderboardOffline:     { en: 'You\'re offline — showing last known scores.', el: 'Είσαι εκτός σύνδεσης — εμφανίζονται τα τελευταία γνωστά σκορ.' },
+
+  // --- Home screen leaderboard button ---
+  homeLeaderboard:        { en: 'Leaderboard',                  el: 'Κατάταξη' },
+
+  // --- Ranking types ---
+  rankMostPlayed:        { en: 'Most Played',        el: 'Περισσότεροι Γύροι' },
+  rankMostAccurate:      { en: 'Most Accurate',      el: 'Ακρίβεια' },
+  rankMostMastered:      { en: 'Most Mastered',      el: 'Περισσότερες Χώρες' },
+  rankBestScore:         { en: 'Best Score',         el: 'Καλύτερο Σκορ' },
+  rankCapitalsPlayed:    { en: 'Capitals Played',    el: 'Πρωτεύουσες' },
+  rankCapitalsAccuracy:  { en: 'Capitals Accuracy',  el: 'Ακρίβεια Πρωτευουσών' },
+  rankMasteredSuffix:    { en: 'mastered',           el: 'χώρες' },
+  rankScoreSuffix:       { en: 'pts',                el: 'πόντοι' },
+  rankGroupGeneral:      { en: 'General',           el: 'Γενικά'              },
+  rankGroupCapitals:     { en: 'Capitals',           el: 'Πρωτεύουσες'         },
 }
 
 export default translations

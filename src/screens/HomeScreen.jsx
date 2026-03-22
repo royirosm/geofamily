@@ -1,12 +1,10 @@
 // HomeScreen.jsx
 // Landing page.
-// Phase 3 additions:
-//   - Fullscreen button in control strip (hidden when already in PWA standalone mode
-//     or when the Fullscreen API is unavailable — i.e. iOS Safari in browser).
-//   - h-[100dvh] + overflow-y-auto to eliminate phantom mobile scroll.
-//   - Control strip carries age mode, language, player-switch, fullscreen, settings.
+// Phase 3: h-[100dvh] + overflow-y-auto, PWA-aware control strip.
+// Phase 4: Leaderboard card added below module grid (matches module card style).
+//          Fullscreen button removed from control strip (lives in Navbar only).
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState }       from 'react'
 import { useNavigate }    from 'react-router-dom'
 import { useLanguage }    from '../context/LanguageContext'
 import { useAgeMode }     from '../context/AgeModeContext'
@@ -46,19 +44,6 @@ const modules = [
   },
 ]
 
-// Returns true when the app is running as an installed PWA (standalone mode).
-// In that case the fullscreen button is redundant — we hide it.
-function isStandalone() {
-  return window.matchMedia('(display-mode: standalone)').matches
-    || window.navigator.standalone === true // iOS PWA flag
-}
-
-// Returns true when the Fullscreen API is available.
-// iOS Safari in browser does NOT support it, so the button is hidden there.
-function fullscreenSupported() {
-  return !!document.documentElement.requestFullscreen
-}
-
 export default function HomeScreen() {
   const navigate              = useNavigate()
   const { lang, setLang, t }  = useLanguage()
@@ -66,29 +51,8 @@ export default function HomeScreen() {
   const { activePlayer }      = usePlayer()
   const [showSettings,     setShowSettings]     = useState(false)
   const [showPlayerSelect, setShowPlayerSelect] = useState(false)
-  const [isFullscreen,     setIsFullscreen]     = useState(!!document.fullscreenElement)
 
   const bg = activePlayer ? getBg(activePlayer.avatarBg) : null
-  const showFullscreenBtn = !isStandalone() && fullscreenSupported()
-
-  // Keep the button icon in sync with actual fullscreen state
-  useEffect(() => {
-    function onFsChange() {
-      setIsFullscreen(!!document.fullscreenElement)
-    }
-    document.addEventListener('fullscreenchange', onFsChange)
-    return () => document.removeEventListener('fullscreenchange', onFsChange)
-  }, [])
-
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {
-        // Browser refused (e.g. gesture not met) — silently ignore
-      })
-    } else {
-      document.exitFullscreen()
-    }
-  }, [])
 
   function handleStartQuiz(moduleKey) {
     navigate(`/quiz/${moduleKey}`, { state: { lang, ageMode } })
@@ -157,18 +121,6 @@ export default function HomeScreen() {
             </button>
           )}
 
-          {/* Fullscreen — hidden on iOS browser & installed PWA */}
-          {showFullscreenBtn && (
-            <button
-              onClick={toggleFullscreen}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors text-sm"
-              aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-              title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-            >
-              {isFullscreen ? '✕' : '⛶'}
-            </button>
-          )}
-
           {/* Settings */}
           <button
             onClick={() => setShowSettings(true)}
@@ -191,13 +143,14 @@ export default function HomeScreen() {
         </p>
       </div>
 
-      {/* ── Module grid ───────────────────────────────────────────── */}
+      {/* ── Module grid + Leaderboard ─────────────────────────────── */}
       <div className="max-w-2xl mx-auto px-4 pb-8">
         <p className={`text-center font-semibold text-gray-400 uppercase tracking-widest mb-6 ${isKids ? 'text-base' : 'text-xs'}`}>
           {t('chooseModule')}
         </p>
 
         <div className="grid grid-cols-2 gap-4">
+          {/* Module cards */}
           {modules.map(mod => (
             <ModuleCard
               key={mod.key}
@@ -207,6 +160,25 @@ export default function HomeScreen() {
               onStart={() => mod.available && handleStartQuiz(mod.key)}
             />
           ))}
+
+          {/* Leaderboard — full-width card in the same grid, same height as module cards */}
+          <button
+            onClick={() => navigate('/leaderboard')}
+            className={`
+              col-span-2
+              bg-gradient-to-br from-yellow-400 to-amber-500
+              text-white rounded-2xl shadow-md
+              hover:shadow-xl hover:-translate-y-0.5 active:scale-95
+              transition-all duration-200
+              flex items-center gap-4 text-left
+              ${isKids ? 'p-6' : 'p-5'}
+            `}
+          >
+            <span className={isKids ? 'text-5xl' : 'text-4xl'}>🏆</span>
+            <span className={`font-bold leading-tight ${isKids ? 'text-xl' : 'text-base'}`}>
+              {t('homeLeaderboard')}
+            </span>
+          </button>
         </div>
       </div>
 

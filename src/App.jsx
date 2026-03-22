@@ -3,23 +3,25 @@
 // Providers: LanguageProvider → AgeModeProvider → SettingsProvider → PlayerProvider
 //
 // Routes:
-//   /        → HomeScreen
+//   /            → HomeScreen
 //   /quiz/capitals → MultipleChoice
-//   /results → ResultsScreen
-//   /stats   → StatsScreen
+//   /results     → ResultsScreen
+//   /stats       → StatsScreen
+//   /leaderboard → LeaderboardScreen  ← Phase 4
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { useCountries }      from './hooks/useCountries'
-import { useLanguage }       from './context/LanguageContext'
-import { usePlayer }         from './context/PlayerContext'
-import { SettingsProvider }  from './context/SettingsContext'
-import { PlayerProvider }    from './context/PlayerContext'
-import Navbar                from './components/Navbar'
-import HomeScreen            from './screens/HomeScreen'
-import PlayerSelectScreen    from './screens/PlayerSelectScreen'
-import MultipleChoice        from './modules/capitals/MultipleChoice'
-import ResultsScreen         from './screens/ResultsScreen'
-import StatsScreen           from './screens/StatsScreen'
+import { useCountries }       from './hooks/useCountries'
+import { useLanguage }        from './context/LanguageContext'
+import { usePlayer }          from './context/PlayerContext'
+import { SettingsProvider }   from './context/SettingsContext'
+import { PlayerProvider }     from './context/PlayerContext'
+import Navbar                 from './components/Navbar'
+import HomeScreen             from './screens/HomeScreen'
+import PlayerSelectScreen     from './screens/PlayerSelectScreen'
+import MultipleChoice         from './modules/capitals/MultipleChoice'
+import ResultsScreen          from './screens/ResultsScreen'
+import StatsScreen            from './screens/StatsScreen'
+import LeaderboardScreen      from './screens/LeaderboardScreen'
 
 function AppContent() {
   const { countries, loading, error } = useCountries()
@@ -60,6 +62,7 @@ function AppContent() {
         <Route path="/quiz/capitals" element={<MultipleChoice countries={countries} />} />
         <Route path="/results"       element={<ResultsScreen />} />
         <Route path="/stats"         element={<StatsScreen countries={countries} />} />
+        <Route path="/leaderboard"   element={<LeaderboardScreen />} />
         <Route path="*"              element={<HomeScreen />} />
       </Routes>
     </div>

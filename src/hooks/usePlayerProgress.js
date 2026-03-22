@@ -3,15 +3,24 @@
 //
 // Storage keys:
 //   geofamily_progress_{playerId}_{moduleId}  → country SRS map
-//   geofamily_history_{playerId}              → round history (all modules)
+//   geofamily_history_{playerId}              → round history (all modules + modes)
 //
-// 5-step strength scale (net = correct - wrong):
-//   'new'        → never seen          display score: 0
-//   'beginner'   → net 1               display score: 1
-//   'learner'    → net 2–3             display score: 2
-//   'practising' → net 4–6             display score: 3
-//   'advanced'   → net 7–9             display score: 4
-//   'master'     → net >= 10           display score: 5
+// History entry shape:
+// {
+//   moduleId:  'capitals',
+//   mode:      'multiple-choice',   ← game mode within the module
+//   date:      '2024-01-15',
+//   score:     8,
+//   total:     10,
+//   accuracy:  80,
+// }
+//
+// SRS is unified per module (mode-agnostic) — knowing Athens is Athens
+// regardless of whether you answered via multiple choice or typing.
+//
+// getStatsForPlayer() returns per-module stats broken down by mode:
+//   roundsByModule: { capitals: [ ...allRounds ] }
+//   byMode:         { capitals: { 'multiple-choice': { rounds, accuracy, bestAccuracy } } }
 
 import { useCallback } from 'react'
 import { usePlayer }   from '../context/PlayerContext'
@@ -36,6 +45,15 @@ export const STRENGTH_WEIGHTS = {
   practising: 4,
   advanced:   2,
   master:     1,
+}
+
+// ── Mode config (single source of truth) ─────────────────────────────────────
+// Add new modes here as they are built. Used by StatsScreen for labels.
+
+export const MODE_LABELS = {
+  'multiple-choice': { en: 'Multiple Choice', el: 'Πολλαπλή Επιλογή', emoji: '☑️' },
+  'typewrite':       { en: 'Type Answer',     el: 'Πληκτρολόγηση',    emoji: '⌨️' },
+  'flashcard':       { en: 'Flashcard',       el: 'Κάρτες',           emoji: '🃏' },
 }
 
 // ── Pure helpers (no hooks — safe to call anywhere) ───────────────────────────
@@ -80,7 +98,6 @@ function saveHistory(playerId, history) {
   try { localStorage.setItem(historyKey(playerId), JSON.stringify(history)) } catch {}
 }
 
-// Returns all moduleIds this player has a progress record for
 function getPlayedModulesForPlayer(playerId) {
   const prefix = `geofamily_progress_${playerId}_`
   return Object.keys(localStorage)
@@ -88,7 +105,10 @@ function getPlayedModulesForPlayer(playerId) {
     .map(k => k.replace(prefix, ''))
 }
 
-// Aggregate stats for any player ID — used by profile cards (no hook needed)
+// ── getStatsForPlayer ─────────────────────────────────────────────────────────
+// Returns aggregate stats including per-module and per-mode breakdowns.
+// Pure function — no hooks, safe to call anywhere.
+
 export function getStatsForPlayer(playerId) {
   try {
     const history      = loadHistory(playerId)
@@ -118,6 +138,7 @@ export function getStatsForPlayer(playerId) {
       }
     }
 
+    // ── Per-module breakdown (all modes combined) ──
     const roundsByModule = {}
     for (const r of history) {
       if (!roundsByModule[r.moduleId]) roundsByModule[r.moduleId] = []
@@ -129,60 +150,90 @@ export function getStatsForPlayer(playerId) {
       bestScoreByModule[mod] = Math.max(...rounds.map(r => r.accuracy))
     }
 
+    // ── Per-mode breakdown (nested under module) ──
+    // byMode[moduleId][mode] = { rounds, accuracy, bestAccuracy }
+    const byMode = {}
+    for (const r of history) {
+      const mod  = r.moduleId
+      const mode = r.mode ?? 'multiple-choice' // default for old entries without mode
+      if (!byMode[mod])       byMode[mod]       = {}
+      if (!byMode[mod][mode]) byMode[mod][mode] = { rounds: 0, totalCorrect: 0, totalAnswers: 0, bestAccuracy: 0 }
+
+      byMode[mod][mode].rounds++
+      byMode[mod][mode].totalCorrect  += r.score
+      byMode[mod][mode].totalAnswers  += r.total
+      byMode[mod][mode].bestAccuracy   = Math.max(byMode[mod][mode].bestAccuracy, r.accuracy)
+    }
+
+    // Collapse totals → accuracy %
+    for (const mod of Object.keys(byMode)) {
+      for (const mode of Object.keys(byMode[mod])) {
+        const m = byMode[mod][mode]
+        m.accuracy = m.totalAnswers > 0
+          ? Math.round((m.totalCorrect / m.totalAnswers) * 100)
+          : 0
+        // Clean up intermediate totals
+        delete m.totalCorrect
+        delete m.totalAnswers
+      }
+    }
+
     return {
       totalRounds, totalCorrect, totalAnswers, accuracy,
       masterCount, maxPerCountry, playedMods,
       roundsByModule, bestScoreByModule,
+      byMode,
       countriesSeen: allCodes.size,
     }
   } catch {
     return {
       totalRounds: 0, totalCorrect: 0, totalAnswers: 0, accuracy: 0,
       masterCount: 0, maxPerCountry: 0, playedMods: [],
-      roundsByModule: {}, bestScoreByModule: {}, countriesSeen: 0,
+      roundsByModule: {}, bestScoreByModule: {}, byMode: {},
+      countriesSeen: 0,
     }
   }
 }
 
-// Level/title for any player ID — used by profile cards (no hook needed)
+// ── getLevelForPlayer ─────────────────────────────────────────────────────────
+
 export function getLevelForPlayer(playerId) {
   try {
     const rounds = loadHistory(playerId).length
-    if (rounds >= 100) return { level: 6, title: { en: 'Master',      el: 'Μαέστρος' } }
-    if (rounds >= 50)  return { level: 5, title: { en: 'Advanced',    el: 'Προχωρημένος' } }
-    if (rounds >= 20)  return { level: 4, title: { en: 'Practising',  el: 'Εξασκούμενος' } }
-    if (rounds >= 10)  return { level: 3, title: { en: 'Learner',     el: 'Μαθητής' } }
-    if (rounds >= 3)   return { level: 2, title: { en: 'Beginner',    el: 'Αρχάριος' } }
-    return               { level: 1, title: { en: 'New',          el: 'Νέος' } }
+    if (rounds >= 100) return { level: 6, title: { en: 'Master',      el: 'Μαέστρος'      } }
+    if (rounds >= 50)  return { level: 5, title: { en: 'Advanced',    el: 'Προχωρημένος'  } }
+    if (rounds >= 20)  return { level: 4, title: { en: 'Practising',  el: 'Εξασκούμενος'  } }
+    if (rounds >= 10)  return { level: 3, title: { en: 'Learner',     el: 'Μαθητής'       } }
+    if (rounds >= 3)   return { level: 2, title: { en: 'Beginner',    el: 'Αρχάριος'      } }
+    return               { level: 1, title: { en: 'New',          el: 'Νέος'          } }
   } catch {
     return { level: 1, title: { en: 'New', el: 'Νέος' } }
   }
 }
 
-// ── Hook (only used in quiz screens + ResultsScreen) ─────────────────────────
+// ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function usePlayerProgress(moduleId) {
   const { activePlayer } = usePlayer()
 
-  // Full SRS map for this player + module
   const getProgress = useCallback(() => {
     if (!activePlayer || !moduleId) return {}
     return loadProgress(activePlayer.id, moduleId)
   }, [activePlayer, moduleId])
 
-  // Single country record
   const getCountryRecord = useCallback((countryCode) => {
     if (!activePlayer || !moduleId) return null
     const progress = loadProgress(activePlayer.id, moduleId)
     return progress[countryCode] ?? { correct: 0, wrong: 0, lastSeen: null, strength: 'new' }
   }, [activePlayer, moduleId])
 
-  // Record a full round of answers + save to history
-  const recordRound = useCallback((answers, roundScore, roundTotal) => {
+  // mode param added — defaults to 'multiple-choice' for backwards compatibility
+  const recordRound = useCallback((answers, roundScore, roundTotal, mode = 'multiple-choice') => {
     if (!activePlayer || !moduleId) return
     const today    = new Date().toISOString().split('T')[0]
     const progress = loadProgress(activePlayer.id, moduleId)
 
+    // SRS update — mode-agnostic (knowing a capital is knowing it)
     for (const answer of answers) {
       const code    = answer.question.country.code
       const current = progress[code] ?? { correct: 0, wrong: 0 }
@@ -190,12 +241,13 @@ export function usePlayerProgress(moduleId) {
       const wrong   = current.wrong   + (answer.correct ? 0 : 1)
       progress[code] = { correct, wrong, lastSeen: today, strength: computeStrength(correct, wrong) }
     }
-
     saveProgress(activePlayer.id, moduleId, progress)
 
+    // History entry — includes mode
     const history = loadHistory(activePlayer.id)
     history.push({
       moduleId,
+      mode,
       date:     today,
       score:    roundScore,
       total:    roundTotal,
@@ -204,7 +256,6 @@ export function usePlayerProgress(moduleId) {
     saveHistory(activePlayer.id, history)
   }, [activePlayer, moduleId])
 
-  // Reactive wrappers around the pure helpers (for stats screen use)
   const getStats = useCallback(() => {
     if (!activePlayer) return null
     return getStatsForPlayer(activePlayer.id)
