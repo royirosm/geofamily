@@ -201,6 +201,19 @@ const translations = {
   // These labelKeys are referenced in useLeaderboard.js RANKING_TYPES entries:
   flagsRankingPlayed:    { en: 'Flags Played',    el: 'Γύροι Σημαιών' },
   flagsRankingAccuracy:  { en: 'Flags Accuracy',  el: 'Ακρίβεια Σημαιών' },
+
+  // ── Type Answer UI ─────────────────────────────────────────────────────────
+  typeAnswerPlaceholder: { en: 'Type your answer…',   el: 'Γράψε την απάντησή σου…' },
+  typeAnswerSubmit:      { en: 'Submit',               el: 'Υποβολή'                 },
+  typeAnswerClose:       { en: 'Almost!',              el: 'Σχεδόν!'                 },
+
+  // ── Hint system ────────────────────────────────────────────────────────────
+  typeAnswerHint:        { en: 'Hint',                 el: 'Βοήθεια'                },
+  typeAnswerHintLeft:    { en: 'left',                 el: 'απομένουν'              },
+  typeAnswerHintMax:     { en: 'No hints left',        el: 'Δεν υπάρχουν άλλες βοήθειες' },
+
+  // ── Results review — Type Answer shows what the player typed ───────────────
+  typeAnswerYouTyped:    { en: 'You typed:',           el: 'Έγραψες:'               },
 }
 
 export default translations

@@ -1,10 +1,9 @@
 // src/screens/ResultsScreen.jsx
 // ─────────────────────────────────────────────────────────────────────────────
-// Phase 5 changes:
-//   - Reads `direction` from location.state (new field)
-//   - Passes direction to recordRound() as 5th param
-//   - country-to-flag answers: shows flag image instead of text label
-//   - "Try Again" navigates back to /module/:moduleId (not directly to quiz)
+// Phase 6 additions:
+//   - Reads `mistakes` array from navigation state (new in Phase 6)
+//   - Passes mistakes to recordRound()
+//   - Type Answer review: shows what player typed + close/wrong distinction
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useRef }        from 'react'
@@ -35,11 +34,13 @@ export default function ResultsScreen() {
     moduleId   = 'capitals',
     direction  = 'find-capital',
     mode       = 'multiple-choice',
+    mistakes   = [],            // ← Phase 6: array of country codes answered wrong
   } = location.state ?? {}
 
   const isKids          = frozenAgeMode === 'kids'
   const pct             = total > 0 ? Math.round((score / total) * 100) : 0
   const isCountryToFlag = direction === 'country-to-flag'
+  const isTypeAnswer    = mode === 'type-answer'
 
   const { recordRound } = usePlayerProgress(moduleId)
   const { pushScore }   = useLeaderboard()
@@ -48,7 +49,7 @@ export default function ResultsScreen() {
   useEffect(() => {
     if (!recorded.current && answers.length > 0) {
       recorded.current = true
-      recordRound(answers, score, total, mode, direction)
+      recordRound(answers, score, total, mode, direction, mistakes)
       if (activePlayer) {
         setTimeout(() => {
           const stats = getStatsForPlayer(activePlayer.id)
@@ -57,7 +58,7 @@ export default function ResultsScreen() {
         }, 100)
       }
     }
-  }, [answers, score, total, mode, direction, recordRound, pushScore, activePlayer, moduleId])
+  }, [answers, score, total, mode, direction, mistakes, recordRound, pushScore, activePlayer, moduleId])
 
   function getMessage() {
     if (pct === 100) return tLang('resultsPerfect',    frozenLang)
@@ -122,37 +123,59 @@ export default function ResultsScreen() {
             <div className="divide-y divide-gray-50">
               {answers.map((ans, i) => {
                 const country = ans.question.country
+                // match field present for type-answer, absent for multiple-choice
+                const isClose = ans.match === 'close'
+
                 return (
                   <div key={i} className="flex items-center gap-3 px-4 py-3">
+
+                    {/* Flag */}
                     <FlagImage
                       src={country.flag}
                       alt={country.name[frozenLang]}
                       className="w-12 h-8 object-cover rounded shadow-sm flex-shrink-0"
                       isKids={isKids}
                     />
+
+                    {/* Country + answer info */}
                     <div className="flex-1 min-w-0">
                       <p className={`font-semibold text-gray-800 truncate ${isKids ? 'text-base' : 'text-sm'}`}>
                         {country.name[frozenLang] ?? country.name.en}
                       </p>
+
+                      {/* country-to-flag: show correct flag thumbnail */}
                       {isCountryToFlag ? (
                         <div className="mt-0.5">
                           <FlagImage
-                            src={ans.question.choices.find(c => c.isCorrect)?.label ?? country.flag}
+                            src={ans.question.choices?.find(c => c.isCorrect)?.label ?? country.flag}
                             alt=""
                             className="w-8 h-5 object-cover rounded shadow-sm"
                             isKids={isKids}
                           />
                         </div>
                       ) : (
-                        <p className={`text-gray-400 truncate ${isKids ? 'text-sm' : 'text-xs'}`}>
-                          {ans.question.correctAnswer ?? ans.question.correctCapital}
-                        </p>
+                        <div className="min-w-0">
+                          {/* Correct answer */}
+                          <p className={`text-gray-400 truncate ${isKids ? 'text-sm' : 'text-xs'}`}>
+                            ✓ {ans.question.correctAnswer ?? ans.question.correctCapital}
+                          </p>
+                          {/* For type-answer: also show what was typed if wrong/close */}
+                          {isTypeAnswer && !ans.correct && ans.chosen && (
+                            <p className={`truncate ${isKids ? 'text-sm' : 'text-xs'} ${isClose ? 'text-amber-500' : 'text-red-400'}`}>
+                              {tLang('typeAnswerYouTyped', frozenLang)} {ans.chosen}
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
-                    <div className="flex-shrink-0">
+
+                    {/* Result icon */}
+                    <div className="flex-shrink-0 text-center">
                       {ans.correct
                         ? <span className="text-green-500 text-lg font-bold">✓</span>
-                        : <span className="text-red-400 text-lg font-bold">✗</span>
+                        : isClose
+                          ? <span className="text-amber-500 text-lg font-bold">~</span>
+                          : <span className="text-red-400 text-lg font-bold">✗</span>
                       }
                     </div>
                   </div>

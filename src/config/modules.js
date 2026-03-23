@@ -1,18 +1,7 @@
 // src/config/modules.js
 // ─────────────────────────────────────────────────────────────────────────────
 // SINGLE SOURCE OF TRUTH for every module, direction, and mode in GeoFamily.
-//
-// Structure:  module → directions[] → modes[]
-//
-// To add a new module:        add an entry to MODULES
-// To add a new direction:     add to module.directions[]
-// To unlock a Phase 6 mode:   set locked: false on the mode entry
-// To wire a new component:    add one Route in App.jsx only
-//
-// Route convention:
-//   /module/:moduleId                    → ModuleSelectScreen
-//   /quiz/:moduleId/:directionId/:modeId → quiz component
-//
+// Phase 6: type-answer unlocked for find-capital, find-country, flag-to-country
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const MODULES = [
@@ -32,7 +21,7 @@ export const MODULES = [
         descKey: 'dirFindCapitalDesc',
         modes: [
           { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
-          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: true  },
+          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false }, // ← Phase 6 unlocked
           { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: true  },
         ],
       },
@@ -43,7 +32,7 @@ export const MODULES = [
         descKey: 'dirFindCountryDesc',
         modes: [
           { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
-          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: true  },
+          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false }, // ← Phase 6 unlocked
           { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: true  },
         ],
       },
@@ -65,7 +54,7 @@ export const MODULES = [
         descKey: 'dirFlagToCountryDesc',
         modes: [
           { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
-          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: true  },
+          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false }, // ← Phase 6 unlocked
           { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: true  },
         ],
       },
@@ -77,7 +66,7 @@ export const MODULES = [
         modes: [
           { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
           { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: true  },
-          // Note: type-answer not applicable — answer is a visual flag
+          // type-answer not applicable — answer is a visual flag
         ],
       },
     ],

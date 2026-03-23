@@ -189,16 +189,19 @@ export function getStatsForPlayer(playerId) {
       if (!byDirection[mod][dir])     byDirection[mod][dir]     = { rounds: 0, totalCorrect: 0, totalAnswers: 0, bestAccuracy: 0, byMode: {} }
       if (!byDirection[mod][dir].byMode[mode]) byDirection[mod][dir].byMode[mode] = { rounds: 0, totalCorrect: 0, totalAnswers: 0, bestAccuracy: 0 }
 
+      // Direction totals
       byDirection[mod][dir].rounds++
       byDirection[mod][dir].totalCorrect += r.score
       byDirection[mod][dir].totalAnswers += r.total
       byDirection[mod][dir].bestAccuracy  = Math.max(byDirection[mod][dir].bestAccuracy, r.accuracy)
 
+      // Mode within direction
       byDirection[mod][dir].byMode[mode].rounds++
       byDirection[mod][dir].byMode[mode].totalCorrect += r.score
       byDirection[mod][dir].byMode[mode].totalAnswers += r.total
       byDirection[mod][dir].byMode[mode].bestAccuracy  = Math.max(byDirection[mod][dir].byMode[mode].bestAccuracy, r.accuracy)
     }
+    // Collapse totals → accuracy %
     for (const mod of Object.keys(byDirection)) {
       for (const dir of Object.keys(byDirection[mod])) {
         const d = byDirection[mod][dir]
@@ -264,8 +267,11 @@ export function usePlayerProgress(moduleId) {
     return progress[countryCode] ?? { correct: 0, wrong: 0, lastSeen: null, strength: 'new' }
   }, [activePlayer, moduleId])
 
-  // Phase 5: added `direction` param (defaults to 'find-capital' for backwards compat)
-  const recordRound = useCallback((answers, roundScore, roundTotal, mode = 'multiple-choice', direction = 'find-capital') => {
+  // Phase 5: added `direction` param
+  // Phase 6: added `mistakes` param — array of country codes answered wrong this round.
+  //          Used by GameModeTab (Phase 6+) for per-direction most-missed breakdown.
+  //          Old entries without mistakes default to [] at read time.
+  const recordRound = useCallback((answers, roundScore, roundTotal, mode = 'multiple-choice', direction = 'find-capital', mistakes = []) => {
     if (!activePlayer || !moduleId) return
     const today    = new Date().toISOString().split('T')[0]
     const progress = loadProgress(activePlayer.id, moduleId)
@@ -280,16 +286,17 @@ export function usePlayerProgress(moduleId) {
     }
     saveProgress(activePlayer.id, moduleId, progress)
 
-    // History entry — now includes direction
+    // History entry — includes direction + mistakes (Phase 6)
     const history = loadHistory(activePlayer.id)
     history.push({
       moduleId,
-      direction,   // ← NEW in Phase 5
+      direction,
       mode,
       date:     today,
       score:    roundScore,
       total:    roundTotal,
       accuracy: Math.round((roundScore / roundTotal) * 100),
+      ...(mistakes.length > 0 ? { mistakes } : {}),  // omit key if empty to save space
     })
     saveHistory(activePlayer.id, history)
   }, [activePlayer, moduleId])

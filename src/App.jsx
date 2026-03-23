@@ -1,11 +1,7 @@
 // src/App.jsx
 // ─────────────────────────────────────────────────────────────────────────────
-// Phase 5 changes:
-//   - Added /module/:moduleId route → ModuleSelectScreen
-//   - Added 3 new quiz routes using new folder structure
-//   - Old /quiz/capitals route kept temporarily for backwards compatibility
-//     (remove after confirming no bookmarks/PWA cached routes remain)
-//   - All quiz components receive `countries` prop
+// Phase 6 additions:
+//   - 3 new type-answer quiz routes
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
@@ -22,10 +18,19 @@ import ResultsScreen          from './screens/ResultsScreen'
 import StatsScreen            from './screens/StatsScreen'
 import LeaderboardScreen      from './screens/LeaderboardScreen'
 
-// ── Quiz components (new folder structure) ────────────────────────────────────
+// ── Capitals / find-capital ───────────────────────────────────────────────────
 import CapitalsFindCapitalMC  from './modules/capitals/find-capital/MultipleChoice'
+import CapitalsFindCapitalTA  from './modules/capitals/find-capital/TypeAnswer'
+
+// ── Capitals / find-country ───────────────────────────────────────────────────
 import CapitalsFindCountryMC  from './modules/capitals/find-country/MultipleChoice'
+import CapitalsFindCountryTA  from './modules/capitals/find-country/TypeAnswer'
+
+// ── Flags / flag-to-country ───────────────────────────────────────────────────
 import FlagsFlagToCountryMC   from './modules/flags/flag-to-country/MultipleChoice'
+import FlagsFlagToCountryTA   from './modules/flags/flag-to-country/TypeAnswer'
+
+// ── Flags / country-to-flag ───────────────────────────────────────────────────
 import FlagsCountryToFlagMC   from './modules/flags/country-to-flag/MultipleChoice'
 
 function AppContent() {
@@ -69,17 +74,25 @@ function AppContent() {
         <Route path="/stats"       element={<StatsScreen countries={countries} />} />
         <Route path="/leaderboard" element={<LeaderboardScreen />} />
 
-        {/* ── Module selector (Phase 5) ── */}
+        {/* ── Module selector ── */}
         <Route path="/module/:moduleId" element={<ModuleSelectScreen />} />
 
-        {/* ── Quiz routes — /quiz/:moduleId/:directionId/:modeId ── */}
-        <Route path="/quiz/capitals/find-capital/multiple-choice"  element={<CapitalsFindCapitalMC  countries={countries} />} />
-        <Route path="/quiz/capitals/find-country/multiple-choice"  element={<CapitalsFindCountryMC  countries={countries} />} />
-        <Route path="/quiz/flags/flag-to-country/multiple-choice"  element={<FlagsFlagToCountryMC   countries={countries} />} />
-        <Route path="/quiz/flags/country-to-flag/multiple-choice"  element={<FlagsCountryToFlagMC   countries={countries} />} />
+        {/* ── Capitals / find-capital ── */}
+        <Route path="/quiz/capitals/find-capital/multiple-choice" element={<CapitalsFindCapitalMC countries={countries} />} />
+        <Route path="/quiz/capitals/find-capital/type-answer"     element={<CapitalsFindCapitalTA countries={countries} />} />
 
-        {/* ── Legacy route — redirect to module selector ── */}
-        {/* Keep until PWA cache clears for all users */}
+        {/* ── Capitals / find-country ── */}
+        <Route path="/quiz/capitals/find-country/multiple-choice" element={<CapitalsFindCountryMC countries={countries} />} />
+        <Route path="/quiz/capitals/find-country/type-answer"     element={<CapitalsFindCountryTA countries={countries} />} />
+
+        {/* ── Flags / flag-to-country ── */}
+        <Route path="/quiz/flags/flag-to-country/multiple-choice" element={<FlagsFlagToCountryMC countries={countries} />} />
+        <Route path="/quiz/flags/flag-to-country/type-answer"     element={<FlagsFlagToCountryTA countries={countries} />} />
+
+        {/* ── Flags / country-to-flag ── */}
+        <Route path="/quiz/flags/country-to-flag/multiple-choice" element={<FlagsCountryToFlagMC countries={countries} />} />
+
+        {/* ── Legacy route (backwards compat) ── */}
         <Route path="/quiz/capitals" element={<CapitalsFindCapitalMC countries={countries} />} />
 
         <Route path="*" element={<HomeScreen />} />
