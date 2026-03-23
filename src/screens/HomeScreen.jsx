@@ -1,8 +1,12 @@
-// HomeScreen.jsx
-// Landing page.
-// Phase 3: h-[100dvh] + overflow-y-auto, PWA-aware control strip.
-// Phase 4: Leaderboard card added below module grid (matches module card style).
-//          Fullscreen button removed from control strip (lives in Navbar only).
+// src/screens/HomeScreen.jsx
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 5 changes:
+//   - Module cards now navigate to /module/:moduleId (ModuleSelectScreen)
+//     instead of directly to a quiz.
+//   - modules array removed — driven from MODULES config in src/config/modules.js
+//   - Flags card is now available: true
+//   - Cities + Map Quiz remain locked (available: false)
+// ─────────────────────────────────────────────────────────────────────────────
 
 import { useState }       from 'react'
 import { useNavigate }    from 'react-router-dom'
@@ -10,39 +14,9 @@ import { useLanguage }    from '../context/LanguageContext'
 import { useAgeMode }     from '../context/AgeModeContext'
 import { usePlayer }      from '../context/PlayerContext'
 import { getBg }          from './PlayerSelectScreen'
+import { MODULES }        from '../config/modules'
 import SettingsModal      from '../components/SettingsModal'
 import PlayerSelectScreen from './PlayerSelectScreen'
-
-const modules = [
-  {
-    key:       'capitals',
-    labelKey:  'modulesCapitals',
-    emoji:     '🏛️',
-    color:     'from-blue-500 to-indigo-600',
-    available: true,
-  },
-  {
-    key:       'flags',
-    labelKey:  'modulesFlags',
-    emoji:     '🚩',
-    color:     'from-rose-400 to-pink-600',
-    available: false,
-  },
-  {
-    key:       'cities',
-    labelKey:  'modulesCities',
-    emoji:     '🏙️',
-    color:     'from-amber-400 to-orange-500',
-    available: false,
-  },
-  {
-    key:       'map-quiz',
-    labelKey:  'modulesMapQuiz',
-    emoji:     '🗺️',
-    color:     'from-emerald-400 to-teal-600',
-    available: false,
-  },
-]
 
 export default function HomeScreen() {
   const navigate              = useNavigate()
@@ -54,8 +28,9 @@ export default function HomeScreen() {
 
   const bg = activePlayer ? getBg(activePlayer.avatarBg) : null
 
-  function handleStartQuiz(moduleKey) {
-    navigate(`/quiz/${moduleKey}`, { state: { lang, ageMode } })
+  function handleModuleClick(mod) {
+    if (!mod.available) return
+    navigate(`/module/${mod.id}`, { state: { lang, ageMode } })
   }
 
   return (
@@ -150,18 +125,18 @@ export default function HomeScreen() {
         </p>
 
         <div className="grid grid-cols-2 gap-4">
-          {/* Module cards */}
-          {modules.map(mod => (
+          {/* Module cards — driven from MODULES config */}
+          {MODULES.map(mod => (
             <ModuleCard
-              key={mod.key}
+              key={mod.id}
               mod={mod}
               label={t(mod.labelKey)}
               isKids={isKids}
-              onStart={() => mod.available && handleStartQuiz(mod.key)}
+              onStart={() => handleModuleClick(mod)}
             />
           ))}
 
-          {/* Leaderboard — full-width card in the same grid, same height as module cards */}
+          {/* Leaderboard — full-width card */}
           <button
             onClick={() => navigate('/leaderboard')}
             className={`
@@ -217,7 +192,7 @@ function ModuleCard({ mod, label, isKids, onStart }) {
         relative rounded-2xl p-6 text-left
         transition-all duration-200
         ${mod.available
-          ? `bg-gradient-to-br ${mod.color} text-white shadow-md hover:shadow-xl hover:-translate-y-0.5 active:scale-95`
+          ? `bg-gradient-to-br ${mod.gradient} text-white shadow-md hover:shadow-xl hover:-translate-y-0.5 active:scale-95`
           : 'bg-white border-2 border-dashed border-gray-200 text-gray-400 cursor-not-allowed'
         }
       `}

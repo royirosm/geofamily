@@ -1,14 +1,22 @@
-// ResultsScreen.jsx
-// Phase 4: passes mode to recordRound() and pushScore().
+// src/screens/ResultsScreen.jsx
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 5 changes:
+//   - Reads `direction` from location.state (new field)
+//   - Passes direction to recordRound() as 5th param
+//   - country-to-flag answers: shows flag image instead of text label
+//   - "Try Again" navigates back to /module/:moduleId (not directly to quiz)
+// ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useRef }        from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useLanguage }              from '../context/LanguageContext'
 import { useAgeMode }               from '../context/AgeModeContext'
 import { usePlayer }                from '../context/PlayerContext'
-import { usePlayerProgress,
-         getStatsForPlayer,
-         getLevelForPlayer }        from '../hooks/usePlayerProgress'
+import {
+  usePlayerProgress,
+  getStatsForPlayer,
+  getLevelForPlayer,
+}                                   from '../hooks/usePlayerProgress'
 import { useLeaderboard }           from '../hooks/useLeaderboard'
 import FlagImage                    from '../components/FlagImage'
 
@@ -22,14 +30,16 @@ export default function ResultsScreen() {
     score     = 0,
     total     = 0,
     answers   = [],
-    lang:     frozenLang    = 'en',
-    ageMode:  frozenAgeMode = 'explorer',
-    moduleId  = 'capitals',
-    mode      = 'multiple-choice',
+    lang:      frozenLang    = 'en',
+    ageMode:   frozenAgeMode = 'explorer',
+    moduleId   = 'capitals',
+    direction  = 'find-capital',
+    mode       = 'multiple-choice',
   } = location.state ?? {}
 
-  const isKids = frozenAgeMode === 'kids'
-  const pct    = total > 0 ? Math.round((score / total) * 100) : 0
+  const isKids          = frozenAgeMode === 'kids'
+  const pct             = total > 0 ? Math.round((score / total) * 100) : 0
+  const isCountryToFlag = direction === 'country-to-flag'
 
   const { recordRound } = usePlayerProgress(moduleId)
   const { pushScore }   = useLeaderboard()
@@ -38,11 +48,7 @@ export default function ResultsScreen() {
   useEffect(() => {
     if (!recorded.current && answers.length > 0) {
       recorded.current = true
-
-      // 1. Save locally — pass mode so history entry is tagged
-      recordRound(answers, score, total, mode)
-
-      // 2. Push to Firebase after localStorage settles
+      recordRound(answers, score, total, mode, direction)
       if (activePlayer) {
         setTimeout(() => {
           const stats = getStatsForPlayer(activePlayer.id)
@@ -51,13 +57,13 @@ export default function ResultsScreen() {
         }, 100)
       }
     }
-  }, [answers, score, total, mode, recordRound, pushScore, activePlayer, moduleId])
+  }, [answers, score, total, mode, direction, recordRound, pushScore, activePlayer, moduleId])
 
   function getMessage() {
-    if (pct === 100) return tLang('resultsPerfect',   frozenLang)
-    if (pct >= 70)  return tLang('resultsGreat',      frozenLang)
-    if (pct >= 40)  return tLang('resultsGood',       frozenLang)
-    return                 tLang('resultsKeepTrying', frozenLang)
+    if (pct === 100) return tLang('resultsPerfect',    frozenLang)
+    if (pct >= 70)   return tLang('resultsGreat',      frozenLang)
+    if (pct >= 40)   return tLang('resultsGood',       frozenLang)
+    return                  tLang('resultsKeepTrying', frozenLang)
   }
 
   const circumference = 2 * Math.PI * 40
@@ -67,7 +73,7 @@ export default function ResultsScreen() {
     <div className="min-h-[100dvh] bg-gradient-to-br from-slate-50 to-blue-50 px-4 py-8">
       <div className="max-w-lg mx-auto space-y-6">
 
-        {/* Score card */}
+        {/* ── Score card ─────────────────────────────────────────── */}
         <div className="bg-white rounded-3xl shadow-xl p-8 text-center">
           <svg viewBox="0 0 100 100" className="w-28 h-28 mx-auto mb-4 -rotate-90">
             <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" strokeWidth="10" />
@@ -89,7 +95,7 @@ export default function ResultsScreen() {
           <p className="text-gray-400 text-sm">{pct}%</p>
         </div>
 
-        {/* Action buttons */}
+        {/* ── Action buttons ─────────────────────────────────────── */}
         <div className="flex gap-3">
           <button
             onClick={() => navigate('/')}
@@ -98,14 +104,14 @@ export default function ResultsScreen() {
             🏠 {tLang('home', frozenLang)}
           </button>
           <button
-            onClick={() => navigate(`/quiz/${moduleId}`, { state: { lang: frozenLang, ageMode: frozenAgeMode } })}
+            onClick={() => navigate(`/module/${moduleId}`, { state: { lang: frozenLang, ageMode: frozenAgeMode } })}
             className={`flex-1 rounded-2xl font-bold bg-blue-500 hover:bg-blue-600 text-white transition-all ${isKids ? 'py-4 text-lg' : 'py-3 text-sm'}`}
           >
             🔄 {tLang('tryAgain', frozenLang)}
           </button>
         </div>
 
-        {/* Per-question review */}
+        {/* ── Per-question review ─────────────────────────────────── */}
         {answers.length > 0 && (
           <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100">
@@ -128,19 +134,25 @@ export default function ResultsScreen() {
                       <p className={`font-semibold text-gray-800 truncate ${isKids ? 'text-base' : 'text-sm'}`}>
                         {country.name[frozenLang] ?? country.name.en}
                       </p>
-                      <p className={`text-gray-400 truncate ${isKids ? 'text-sm' : 'text-xs'}`}>
-                        {ans.question.correctCapital}
-                      </p>
+                      {isCountryToFlag ? (
+                        <div className="mt-0.5">
+                          <FlagImage
+                            src={ans.question.choices.find(c => c.isCorrect)?.label ?? country.flag}
+                            alt=""
+                            className="w-8 h-5 object-cover rounded shadow-sm"
+                            isKids={isKids}
+                          />
+                        </div>
+                      ) : (
+                        <p className={`text-gray-400 truncate ${isKids ? 'text-sm' : 'text-xs'}`}>
+                          {ans.question.correctAnswer ?? ans.question.correctCapital}
+                        </p>
+                      )}
                     </div>
                     <div className="flex-shrink-0">
                       {ans.correct
-                        ? <span className="text-green-500 font-bold text-lg">✓</span>
-                        : <div className="text-right">
-                            <span className="text-red-400 font-bold text-lg">✗</span>
-                            <p className={`text-red-400 ${isKids ? 'text-xs' : 'text-[10px]'} max-w-[80px] truncate`}>
-                              {ans.chosen}
-                            </p>
-                          </div>
+                        ? <span className="text-green-500 text-lg font-bold">✓</span>
+                        : <span className="text-red-400 text-lg font-bold">✗</span>
                       }
                     </div>
                   </div>

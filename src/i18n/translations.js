@@ -1,38 +1,3 @@
-// ── NEW KEYS TO ADD to translations.js ───────────────────────────────────────
-// Add these entries into the existing translations object, before the closing }
-// Place them after the existing strengthMaster entry.
-
-/*
-
-  // --- Stats screen ---
-  statsTitle:        { en: 'My Stats',              el: 'Οι Στατιστικές μου' },
-  statsRounds:       { en: 'Rounds played',          el: 'Γύροι' },
-  statsAccuracy:     { en: 'Accuracy',               el: 'Ακρίβεια' },
-  statsSeen:         { en: 'Countries seen',         el: 'Χώρες που είδες' },
-  statsMastered:     { en: 'Mastered',               el: 'Έχεις μάθει' },
-  statsModules:      { en: 'By module',              el: 'Ανά θέμα' },
-  statsRegions:      { en: 'Strength by region',     el: 'Δύναμη ανά περιοχή' },
-  statsMostMissed:   { en: 'Most missed',            el: 'Πιο δύσκολες' },
-  statsCountries:    { en: 'Country breakdown',      el: 'Ανά χώρα' },
-  statsNoData:       { en: 'No countries match this filter', el: 'Δεν βρέθηκαν χώρες' },
-  statsEmptyTitle:   { en: 'No data yet!',           el: 'Δεν υπάρχουν δεδομένα ακόμα!' },
-  statsEmptySubtitle:{ en: 'Play a round to start tracking your progress', el: 'Παίξε έναν γύρο για να ξεκινήσεις' },
-  statsPlayNow:      { en: 'Play now',               el: 'Παίξε τώρα' },
-
-  // --- Filter ---
-  filterAll:         { en: 'All',    el: 'Όλα' },
-
-  // --- Region labels (add if not already present) ---
-  regionEurope:   { en: 'Europe',   el: 'Ευρώπη' },
-  regionAsia:     { en: 'Asia',     el: 'Ασία' },
-  regionAfrica:   { en: 'Africa',   el: 'Αφρική' },
-  regionAmericas: { en: 'Americas', el: 'Αμερική' },
-  regionOceania:  { en: 'Oceania',  el: 'Ωκεανία' },
-
-*/
-
-// ── FULL translations.js (complete replacement) ───────────────────────────────
-
 const translations = {
 
   // --- General ---
@@ -157,6 +122,10 @@ const translations = {
   statsEmptyTitle:    { en: 'No data yet!',                      el: 'Δεν υπάρχουν δεδομένα ακόμα!' },
   statsEmptySubtitle: { en: 'Play a round to start tracking your progress', el: 'Παίξε έναν γύρο για να ξεκινήσεις' },
   statsPlayNow:       { en: 'Play now',                          el: 'Παίξε τώρα' },
+  statsTabOverview:    { en: 'Overview',   el: 'Σύνοψη'  },
+  statsTabCountries:   { en: 'Countries',  el: 'Χώρες'   },
+  statsTabGameMode:    { en: 'Game Mode',  el: 'Είδος'   },
+  statsCountriesCount: { en: 'countries',  el: 'χώρες'   },
 
   // --- Filter ---
   filterAll: { en: 'All', el: 'Όλα' },
@@ -199,6 +168,39 @@ const translations = {
   rankScoreSuffix:       { en: 'pts',                el: 'πόντοι' },
   rankGroupGeneral:      { en: 'General',           el: 'Γενικά'              },
   rankGroupCapitals:     { en: 'Capitals',           el: 'Πρωτεύουσες'         },
+
+  // ── ModuleSelectScreen ─────────────────────────────────────────────────────
+  moduleSelectSubtitle:   { en: 'How do you want to play?',       el: 'Πώς θέλεις να παίξεις;' },
+  moduleSelectStep1:      { en: 'Choose a direction',             el: 'Διάλεξε κατεύθυνση' },
+  moduleSelectStep2:      { en: 'Choose a game type',             el: 'Διάλεξε είδος παιχνιδιού' },
+  moduleSelectComingSoon: { en: 'More game types coming!', el: 'Σύντομα περισσότερα παιχνίδια!' },
+
+  // ── Direction labels — Capitals ────────────────────────────────────────────
+  dirFindCapital:         { en: 'Find the Capital',               el: 'Βρες την Πρωτεύουσα' },
+  dirFindCapitalDesc:     { en: 'Given a country — name its capital', el: 'Δίνεται χώρα — βρες την πρωτεύουσα' },
+  dirFindCountry:         { en: 'Find the Country',              el: 'Βρες τη Χώρα' },
+  dirFindCountryDesc:     { en: 'Given a capital — name its country', el: 'Δίνεται πρωτεύουσα — βρες τη χώρα' },
+
+  // ── Direction labels — Flags ───────────────────────────────────────────────
+  dirFlagToCountry:       { en: 'Flag → Country',                el: 'Σημαία → Χώρα' },
+  dirFlagToCountryDesc:   { en: 'Given a flag — name its country', el: 'Δίνεται σημαία — βρες τη χώρα' },
+  dirCountryToFlag:       { en: 'Country → Flag',                el: 'Χώρα → Σημαία' },
+  dirCountryToFlagDesc:   { en: 'Given a country — pick its flag', el: 'Δίνεται χώρα — βρες τη σημαία' },
+
+  // ── Mode labels ────────────────────────────────────────────────────────────
+  modeMultipleChoice:     { en: 'Multiple Choice',               el: 'Πολλαπλή Επιλογή' },
+  modeTypeAnswer:         { en: 'Type Answer',                   el: 'Πληκτρολόγηση' },
+  modeFlashcard:          { en: 'Flashcard',                     el: 'Κάρτες' },
+
+  // ── Quiz prompts — new directions ─────────────────────────────────────────
+  quizReverseQuestion:      { en: 'Which country has this capital?', el: 'Ποια χώρα έχει αυτή την πρωτεύουσα;' },
+  quizFlagQuestion:         { en: 'Which country does this flag belong to?', el: 'Σε ποια χώρα ανήκει αυτή η σημαία;' },
+  quizCountryToFlagQuestion:{ en: 'Which is the flag of',         el: 'Ποια είναι η σημαία της' },
+
+  // ── Leaderboard — Flags ranking labels (add to RANKING_TYPES) ─────────────
+  // These labelKeys are referenced in useLeaderboard.js RANKING_TYPES entries:
+  flagsRankingPlayed:    { en: 'Flags Played',    el: 'Γύροι Σημαιών' },
+  flagsRankingAccuracy:  { en: 'Flags Accuracy',  el: 'Ακρίβεια Σημαιών' },
 }
 
 export default translations

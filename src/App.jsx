@@ -1,13 +1,12 @@
-// App.jsx
-// Root component. Uses React Router for navigation between screens.
-// Providers: LanguageProvider → AgeModeProvider → SettingsProvider → PlayerProvider
-//
-// Routes:
-//   /            → HomeScreen
-//   /quiz/capitals → MultipleChoice
-//   /results     → ResultsScreen
-//   /stats       → StatsScreen
-//   /leaderboard → LeaderboardScreen  ← Phase 4
+// src/App.jsx
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 5 changes:
+//   - Added /module/:moduleId route → ModuleSelectScreen
+//   - Added 3 new quiz routes using new folder structure
+//   - Old /quiz/capitals route kept temporarily for backwards compatibility
+//     (remove after confirming no bookmarks/PWA cached routes remain)
+//   - All quiz components receive `countries` prop
+// ─────────────────────────────────────────────────────────────────────────────
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useCountries }       from './hooks/useCountries'
@@ -18,10 +17,16 @@ import { PlayerProvider }     from './context/PlayerContext'
 import Navbar                 from './components/Navbar'
 import HomeScreen             from './screens/HomeScreen'
 import PlayerSelectScreen     from './screens/PlayerSelectScreen'
-import MultipleChoice         from './modules/capitals/MultipleChoice'
+import ModuleSelectScreen     from './screens/ModuleSelectScreen'
 import ResultsScreen          from './screens/ResultsScreen'
 import StatsScreen            from './screens/StatsScreen'
 import LeaderboardScreen      from './screens/LeaderboardScreen'
+
+// ── Quiz components (new folder structure) ────────────────────────────────────
+import CapitalsFindCapitalMC  from './modules/capitals/find-capital/MultipleChoice'
+import CapitalsFindCountryMC  from './modules/capitals/find-country/MultipleChoice'
+import FlagsFlagToCountryMC   from './modules/flags/flag-to-country/MultipleChoice'
+import FlagsCountryToFlagMC   from './modules/flags/country-to-flag/MultipleChoice'
 
 function AppContent() {
   const { countries, loading, error } = useCountries()
@@ -58,12 +63,26 @@ function AppContent() {
     <div className="min-h-screen">
       <Navbar />
       <Routes>
-        <Route path="/"              element={<HomeScreen />} />
-        <Route path="/quiz/capitals" element={<MultipleChoice countries={countries} />} />
-        <Route path="/results"       element={<ResultsScreen />} />
-        <Route path="/stats"         element={<StatsScreen countries={countries} />} />
-        <Route path="/leaderboard"   element={<LeaderboardScreen />} />
-        <Route path="*"              element={<HomeScreen />} />
+        {/* ── Core screens ── */}
+        <Route path="/"            element={<HomeScreen />} />
+        <Route path="/results"     element={<ResultsScreen />} />
+        <Route path="/stats"       element={<StatsScreen countries={countries} />} />
+        <Route path="/leaderboard" element={<LeaderboardScreen />} />
+
+        {/* ── Module selector (Phase 5) ── */}
+        <Route path="/module/:moduleId" element={<ModuleSelectScreen />} />
+
+        {/* ── Quiz routes — /quiz/:moduleId/:directionId/:modeId ── */}
+        <Route path="/quiz/capitals/find-capital/multiple-choice"  element={<CapitalsFindCapitalMC  countries={countries} />} />
+        <Route path="/quiz/capitals/find-country/multiple-choice"  element={<CapitalsFindCountryMC  countries={countries} />} />
+        <Route path="/quiz/flags/flag-to-country/multiple-choice"  element={<FlagsFlagToCountryMC   countries={countries} />} />
+        <Route path="/quiz/flags/country-to-flag/multiple-choice"  element={<FlagsCountryToFlagMC   countries={countries} />} />
+
+        {/* ── Legacy route — redirect to module selector ── */}
+        {/* Keep until PWA cache clears for all users */}
+        <Route path="/quiz/capitals" element={<CapitalsFindCapitalMC countries={countries} />} />
+
+        <Route path="*" element={<HomeScreen />} />
       </Routes>
     </div>
   )
