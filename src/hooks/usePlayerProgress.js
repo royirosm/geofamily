@@ -217,12 +217,29 @@ export function getStatsForPlayer(playerId) {
       }
     }
 
+    // ── mistakesByDirection — count per country per module+direction ───────────
+    // Only includes entries that have a `mistakes` array (Phase 6+).
+    // Old entries without mistakes are silently skipped — no backwards-compat issue.
+    // Shape: { moduleId: { directionId: { countryCode: count } } }
+    const mistakesByDirection = {}
+    for (const r of history) {
+      if (!r.mistakes || r.mistakes.length === 0) continue
+      const mod = r.moduleId
+      const dir = r.direction ?? 'find-capital'
+      if (!mistakesByDirection[mod])       mistakesByDirection[mod]       = {}
+      if (!mistakesByDirection[mod][dir])  mistakesByDirection[mod][dir]  = {}
+      for (const code of r.mistakes) {
+        mistakesByDirection[mod][dir][code] = (mistakesByDirection[mod][dir][code] ?? 0) + 1
+      }
+    }
+
     return {
       totalRounds, totalCorrect, totalAnswers, accuracy,
       masterCount, maxPerCountry, playedMods,
       roundsByModule, bestScoreByModule,
       byMode,
       byDirection,
+      mistakesByDirection,
       countriesSeen: allCodes.size,
     }
   } catch {
@@ -230,6 +247,7 @@ export function getStatsForPlayer(playerId) {
       totalRounds: 0, totalCorrect: 0, totalAnswers: 0, accuracy: 0,
       masterCount: 0, maxPerCountry: 0, playedMods: [],
       roundsByModule: {}, bestScoreByModule: {}, byMode: {}, byDirection: {},
+      mistakesByDirection: {},
       countriesSeen: 0,
     }
   }

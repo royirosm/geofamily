@@ -2,22 +2,18 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Stats Tab 3 — By Game Mode
 //
-// Shows performance broken down by module → direction → mode.
-// Data source: round history (accuracy per session), NOT SRS progress.
+// Phase 6 update: per-direction "Most missed" mini-list.
+// Data source:
+//   • Rounds/accuracy → byDirection from getStatsForPlayer
+//   • Most missed     → mistakesByDirection (country codes from history.mistakes)
 //
-// Each module card is expandable to reveal:
-//   Direction rows  (e.g. "Find the Capital", "Find the Country")
-//   └ Mode rows     (e.g. "Multiple Choice")
-//       rounds · accuracy · best accuracy
+// Most missed only appears where Phase 6+ history entries exist.
+// Old entries without mistakes are silently skipped — no backwards-compat issue.
 //
-// Only modules/directions/modes with actual play history are shown.
-//
-// Phase 6 note: when `mistakes` array is added to history entries,
-// this tab can be extended to show per-direction most-missed countries
-// and per-direction regional accuracy — add those sections here.
+// Requires `countries` prop to resolve country codes → flag + name.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState }          from 'react'
+import { useState, useMemo } from 'react'
 import { EmptyState }        from '../StatsHelpers.jsx'
 import { MODULES }           from '../../../config/modules'
 import {
@@ -25,13 +21,57 @@ import {
   DIRECTION_LABELS,
 }                            from '../../../hooks/usePlayerProgress'
 
+// ── Per-direction most missed mini-list ───────────────────────────────────────
+
+function DirectionMostMissed({ mistakeCounts, countryMap, lang, t }) {
+  const top = useMemo(() => {
+    return Object.entries(mistakeCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([code, count]) => ({ code, count, country: countryMap[code] }))
+      .filter(r => r.country)
+  }, [mistakeCounts, countryMap])
+
+  if (top.length === 0) return null
+
+  return (
+    <div className="px-4 py-2.5 border-t border-gray-50 bg-white">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 ml-6">
+        {t('statsMostMissed')}
+      </p>
+      <div className="space-y-1.5 ml-6">
+        {top.map(({ code, count, country }) => (
+          <div key={code} className="flex items-center gap-2">
+            <img
+              src={country.flag}
+              alt={country.name[lang]}
+              className="w-8 h-5 object-cover rounded shadow-sm flex-shrink-0"
+            />
+            <span className="text-xs font-semibold text-gray-600 flex-1 truncate">
+              {country.name[lang] ?? country.name.en}
+            </span>
+            <span className="text-xs font-bold text-red-400 flex-shrink-0">✗ {count}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Tab component ─────────────────────────────────────────────────────────────
 
-export default function GameModeTab({ stats, lang, t }) {
+export default function GameModeTab({ stats, countries, lang, t }) {
   const [expandedModule, setExpandedModule] = useState(null)
 
-  const byDir           = stats.byDirection ?? {}
-  const playedModuleIds = Object.keys(byDir)
+  const byDir               = stats.byDirection        ?? {}
+  const mistakesByDirection = stats.mistakesByDirection ?? {}
+  const playedModuleIds     = Object.keys(byDir)
+
+  const countryMap = useMemo(() => {
+    const m = {}
+    for (const c of countries) m[c.code] = c
+    return m
+  }, [countries])
 
   if (playedModuleIds.length === 0) {
     return <EmptyState emoji="🎮" subtitle={t('statsEmptySubtitle')} />
@@ -54,7 +94,7 @@ export default function GameModeTab({ stats, lang, t }) {
         return (
           <div key={modId} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
 
-            {/* ── Module header ── */}
+            {/* Module header */}
             <button
               className="w-full flex items-center gap-3 px-4 py-4 text-left hover:bg-gray-50 transition-colors"
               onClick={() => setExpandedModule(isExpanded ? null : modId)}
@@ -69,11 +109,13 @@ export default function GameModeTab({ stats, lang, t }) {
               <span className="text-gray-300 text-sm">{isExpanded ? '▲' : '▼'}</span>
             </button>
 
-            {/* ── Direction + Mode rows (expanded) ── */}
+            {/* Direction + Mode rows */}
             {isExpanded && dirIds.map(dirId => {
-              const dir     = dirMap[dirId]
-              const dirInfo = DIRECTION_LABELS[dirId] ?? { en: dirId, el: dirId, emoji: '▸' }
-              const modeIds = Object.keys(dir.byMode ?? {})
+              const dir           = dirMap[dirId]
+              const dirInfo       = DIRECTION_LABELS[dirId] ?? { en: dirId, el: dirId, emoji: '▸' }
+              const modeIds       = Object.keys(dir.byMode ?? {})
+              const mistakeCounts = mistakesByDirection[modId]?.[dirId] ?? {}
+              const hasMistakes   = Object.keys(mistakeCounts).length > 0
 
               return (
                 <div key={dirId} className="border-t border-gray-100">
@@ -109,6 +151,17 @@ export default function GameModeTab({ stats, lang, t }) {
                       </div>
                     )
                   })}
+
+                  {/* Most missed in this direction (Phase 6+ data only) */}
+                  {hasMistakes && (
+                    <DirectionMostMissed
+                      mistakeCounts={mistakeCounts}
+                      countryMap={countryMap}
+                      lang={lang}
+                      t={t}
+                    />
+                  )}
+
                 </div>
               )
             })}

@@ -142,6 +142,7 @@ export default function StatsScreen({ countries }) {
           {activeTab === 'gamemode' && (
             <GameModeTab
               stats={stats}
+              countries={countries}
               lang={lang}
               t={t}
             />

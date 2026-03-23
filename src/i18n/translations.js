@@ -214,6 +214,15 @@ const translations = {
 
   // ── Results review — Type Answer shows what the player typed ───────────────
   typeAnswerYouTyped:    { en: 'You typed:',           el: 'Έγραψες:'               },
+
+  flashcardTapToReveal:  { en: 'Tap to reveal answer',  el: 'Πάτα για να δεις την απάντηση' },
+  flashcardReveal:       { en: 'Reveal Answer',          el: 'Αποκάλυψη Απάντησης'           },
+  flashcardAnswer:       { en: 'Answer',                 el: 'Απάντηση'                      },
+  flashcardGotIt:        { en: 'Got it!',                el: 'Το ξέρω!'                      },
+  flashcardNotYet:       { en: 'Not yet',                el: 'Όχι ακόμα'                     },
+  flashcardMarkedGot:    { en: 'Marked as learned',      el: 'Σημειώθηκε ως γνωστό'         },
+  flashcardMarkedNotYet: { en: 'Keep practising',        el: 'Συνέχισε την εξάσκηση'         },
+  flashcardProgress:     { en: 'Card',                   el: 'Κάρτα'                         },
 }
 
 export default translations

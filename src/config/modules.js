@@ -1,8 +1,5 @@
 // src/config/modules.js
-// ─────────────────────────────────────────────────────────────────────────────
-// SINGLE SOURCE OF TRUTH for every module, direction, and mode in GeoFamily.
-// Phase 6: type-answer unlocked for find-capital, find-country, flag-to-country
-// ─────────────────────────────────────────────────────────────────────────────
+// Phase 6 complete: type-answer + flashcard unlocked for all applicable directions
 
 export const MODULES = [
 
@@ -15,25 +12,25 @@ export const MODULES = [
     available: true,
     directions: [
       {
-        id:      'find-capital',
+        id:       'find-capital',
         labelKey: 'dirFindCapital',
-        emoji:   '🗺️',
-        descKey: 'dirFindCapitalDesc',
+        emoji:    '🗺️',
+        descKey:  'dirFindCapitalDesc',
         modes: [
           { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
-          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false }, // ← Phase 6 unlocked
-          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: true  },
+          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false },
+          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: false },
         ],
       },
       {
-        id:      'find-country',
+        id:       'find-country',
         labelKey: 'dirFindCountry',
-        emoji:   '❓',
-        descKey: 'dirFindCountryDesc',
+        emoji:    '❓',
+        descKey:  'dirFindCountryDesc',
         modes: [
           { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
-          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false }, // ← Phase 6 unlocked
-          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: true  },
+          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false },
+          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: false },
         ],
       },
     ],
@@ -48,24 +45,24 @@ export const MODULES = [
     available: true,
     directions: [
       {
-        id:      'flag-to-country',
+        id:       'flag-to-country',
         labelKey: 'dirFlagToCountry',
-        emoji:   '🏳️',
-        descKey: 'dirFlagToCountryDesc',
+        emoji:    '🏳️',
+        descKey:  'dirFlagToCountryDesc',
         modes: [
           { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
-          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false }, // ← Phase 6 unlocked
-          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: true  },
+          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false },
+          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: false },
         ],
       },
       {
-        id:      'country-to-flag',
+        id:       'country-to-flag',
         labelKey: 'dirCountryToFlag',
-        emoji:   '🌍',
-        descKey: 'dirCountryToFlagDesc',
+        emoji:    '🌍',
+        descKey:  'dirCountryToFlagDesc',
         modes: [
           { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
-          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: true  },
+          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: false },
           // type-answer not applicable — answer is a visual flag
         ],
       },
@@ -91,8 +88,6 @@ export const MODULES = [
   },
 ]
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 export function getModule(moduleId) {
   return MODULES.find(m => m.id === moduleId) ?? null
 }
@@ -105,12 +100,10 @@ export function getMode(moduleId, directionId, modeId) {
   return getDirection(moduleId, directionId)?.modes.find(m => m.id === modeId) ?? null
 }
 
-/** First unlocked mode for a direction */
 export function defaultMode(moduleId, directionId) {
   return getDirection(moduleId, directionId)?.modes.find(m => !m.locked) ?? null
 }
 
-/** Build quiz route path */
 export function quizPath(moduleId, directionId, modeId) {
   return `/quiz/${moduleId}/${directionId}/${modeId}`
 }
