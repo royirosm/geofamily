@@ -1,7 +1,8 @@
 // src/App.jsx
-// Phase 6 complete: all multiple-choice, type-answer, and flashcard routes
+// Phase 8A: calls syncOnOpen() once on mount to pull Firestore data
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { useEffect }          from 'react'
 import { useCountries }       from './hooks/useCountries'
 import { useLanguage }        from './context/LanguageContext'
 import { usePlayer }          from './context/PlayerContext'
@@ -35,15 +36,21 @@ import FlagsCountryToFlagMC   from './modules/flags/country-to-flag/MultipleChoi
 import FlagsCountryToFlagFC   from './modules/flags/country-to-flag/Flashcard'
 
 // ── Sovereignty / country-or-territory ───────────────────────────────────────
-import SovereigntyBinary         from './modules/sovereignty/country-or-territory/SovereigntyBinary'
+import SovereigntyBinary          from './modules/sovereignty/country-or-territory/SovereigntyBinary'
 
 // ── Sovereignty / find-sovereign ─────────────────────────────────────────────
 import SovereigntyFindSovereignMC from './modules/sovereignty/find-sovereign/MultipleChoice'
 
 function AppContent() {
   const { countries, loading, error } = useCountries()
-  const { t }            = useLanguage()
-  const { activePlayer } = usePlayer()
+  const { t }              = useLanguage()
+  const { activePlayer, syncOnOpen } = usePlayer()
+
+  // 8A: pull + merge Firestore data once on app open
+  useEffect(() => {
+    syncOnOpen()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])  // run once on mount only
 
   if (loading) {
     return (

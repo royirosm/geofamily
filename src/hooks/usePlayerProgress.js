@@ -1,16 +1,12 @@
 // src/hooks/usePlayerProgress.js
 // ─────────────────────────────────────────────────────────────────────────────
-// Phase 5 changes:
-//   - History entries now include `direction` field (e.g. 'find-capital')
-//   - Old entries without direction default to 'find-capital' at read time
-//   - getStatsForPlayer now returns byDirection breakdown:
-//       byDirection[moduleId][directionId] = { rounds, accuracy, bestAccuracy, byMode }
-//   - recordRound now accepts direction param (defaults to 'find-capital')
-//   - MODE_LABELS updated with new direction-mode combinations
+// Phase 8A: recordRound now fire-and-forget pushes progress + history to
+//           Firestore after writing to localStorage, via useSync.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback } from 'react'
 import { usePlayer }   from '../context/PlayerContext'
+import { useSync }     from './useSync'
 
 // ── Strength config ───────────────────────────────────────────────────────────
 
@@ -34,18 +30,16 @@ export const STRENGTH_WEIGHTS = {
   master:     1,
 }
 
-// ── Mode labels — all mode IDs used across all modules ────────────────────────
-// Used by StatsScreen for display labels + emoji.
+// ── Mode labels ───────────────────────────────────────────────────────────────
 
 export const MODE_LABELS = {
   'multiple-choice': { en: 'Multiple Choice', el: 'Πολλαπλή Επιλογή', emoji: '☑️' },
   'type-answer':     { en: 'Type Answer',     el: 'Πληκτρολόγηση',    emoji: '⌨️' },
   'flashcard':       { en: 'Flashcard',       el: 'Κάρτες',           emoji: '🃏' },
-  // Legacy key kept for backwards compatibility with old history entries
   'typewrite':       { en: 'Type Answer',     el: 'Πληκτρολόγηση',    emoji: '⌨️' },
 }
 
-// ── Direction labels — all direction IDs across all modules ──────────────────
+// ── Direction labels ──────────────────────────────────────────────────────────
 
 export const DIRECTION_LABELS = {
   'find-capital':         { en: 'Find the Capital',         el: 'Βρες την Πρωτεύουσα',  emoji: '🗺️' },
@@ -90,12 +84,17 @@ function saveProgress(playerId, moduleId, data) {
 function loadHistory(playerId) {
   try {
     const raw = localStorage.getItem(historyKey(playerId))
-    return raw ? JSON.parse(raw) : []
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    // Support both old format (array) and new format ({ rounds: [] })
+    return Array.isArray(parsed) ? parsed : (parsed.rounds ?? [])
   } catch { return [] }
 }
 
-function saveHistory(playerId, history) {
-  try { localStorage.setItem(historyKey(playerId), JSON.stringify(history)) } catch {}
+function saveHistory(playerId, rounds) {
+  try {
+    localStorage.setItem(historyKey(playerId), JSON.stringify({ rounds }))
+  } catch {}
 }
 
 function getPlayedModulesForPlayer(playerId) {
@@ -106,15 +105,6 @@ function getPlayedModulesForPlayer(playerId) {
 }
 
 // ── getStatsForPlayer ─────────────────────────────────────────────────────────
-// Pure function — no hooks, safe to call anywhere.
-//
-// Returns:
-//   totalRounds, accuracy, masterCount, countriesSeen   — global totals
-//   roundsByModule   { moduleId: Round[] }
-//   bestScoreByModule { moduleId: number }
-//   byMode           { moduleId: { modeId: { rounds, accuracy, bestAccuracy } } }
-//   byDirection      { moduleId: { directionId: { rounds, accuracy, bestAccuracy,
-//                                                  byMode: { modeId: {...} } } } }
 
 export function getStatsForPlayer(playerId) {
   try {
@@ -122,167 +112,124 @@ export function getStatsForPlayer(playerId) {
     const totalRounds  = history.length
     const totalCorrect = history.reduce((s, r) => s + r.score, 0)
     const totalAnswers = history.reduce((s, r) => s + r.total, 0)
-    const accuracy     = totalAnswers > 0 ? Math.round((totalCorrect / totalAnswers) * 100) : 0
+    const accuracy     = totalAnswers > 0
+      ? Math.round((totalCorrect / totalAnswers) * 100) : 0
 
-    const playedMods = getPlayedModulesForPlayer(playerId)
-    const allCodes   = new Set()
-    const modMaps    = {}
-    for (const mod of playedMods) {
-      const map = loadProgress(playerId, mod)
-      modMaps[mod] = map
-      Object.keys(map).forEach(c => allCodes.add(c))
-    }
-
-    // Master count
-    const maxPerCountry = playedMods.length * 5
-    let masterCount = 0
-    if (maxPerCountry > 0) {
-      for (const code of allCodes) {
-        const score = playedMods.reduce(
-          (s, mod) => s + (STRENGTH_DISPLAY_SCORE[modMaps[mod]?.[code]?.strength ?? 'new']),
-          0
-        )
-        if (score >= maxPerCountry) masterCount++
-      }
-    }
-
-    // ── Per-module (all directions + modes combined) ──────────────────────────
+    // masterCount — distinct country codes at 'master' across all modules
+    const modules        = getPlayedModulesForPlayer(playerId)
+    const masteredCodes  = new Set()
     const roundsByModule = {}
-    for (const r of history) {
-      if (!roundsByModule[r.moduleId]) roundsByModule[r.moduleId] = []
-      roundsByModule[r.moduleId].push(r)
-    }
-
     const bestScoreByModule = {}
-    for (const [mod, rounds] of Object.entries(roundsByModule)) {
-      bestScoreByModule[mod] = Math.max(...rounds.map(r => r.accuracy))
-    }
-
-    // ── byMode — grouped by moduleId → modeId ────────────────────────────────
-    const byMode = {}
-    for (const r of history) {
-      const mod  = r.moduleId
-      const mode = r.mode ?? 'multiple-choice'
-      if (!byMode[mod])       byMode[mod]       = {}
-      if (!byMode[mod][mode]) byMode[mod][mode] = { rounds: 0, totalCorrect: 0, totalAnswers: 0, bestAccuracy: 0 }
-      byMode[mod][mode].rounds++
-      byMode[mod][mode].totalCorrect += r.score
-      byMode[mod][mode].totalAnswers += r.total
-      byMode[mod][mode].bestAccuracy  = Math.max(byMode[mod][mode].bestAccuracy, r.accuracy)
-    }
-    for (const mod of Object.keys(byMode)) {
-      for (const mode of Object.keys(byMode[mod])) {
-        const m = byMode[mod][mode]
-        m.accuracy = m.totalAnswers > 0 ? Math.round((m.totalCorrect / m.totalAnswers) * 100) : 0
-        delete m.totalCorrect
-        delete m.totalAnswers
-      }
-    }
-
-    // ── byDirection — grouped by moduleId → directionId → modeId ─────────────
-    // direction defaults to 'find-capital' for legacy history entries
+    const byMode    = {}
     const byDirection = {}
-    for (const r of history) {
-      const mod  = r.moduleId
-      const dir  = r.direction ?? 'find-capital'
-      const mode = r.mode      ?? 'multiple-choice'
 
-      if (!byDirection[mod])          byDirection[mod]          = {}
-      if (!byDirection[mod][dir])     byDirection[mod][dir]     = { rounds: 0, totalCorrect: 0, totalAnswers: 0, bestAccuracy: 0, byMode: {} }
-      if (!byDirection[mod][dir].byMode[mode]) byDirection[mod][dir].byMode[mode] = { rounds: 0, totalCorrect: 0, totalAnswers: 0, bestAccuracy: 0 }
-
-      // Direction totals
-      byDirection[mod][dir].rounds++
-      byDirection[mod][dir].totalCorrect += r.score
-      byDirection[mod][dir].totalAnswers += r.total
-      byDirection[mod][dir].bestAccuracy  = Math.max(byDirection[mod][dir].bestAccuracy, r.accuracy)
-
-      // Mode within direction
-      byDirection[mod][dir].byMode[mode].rounds++
-      byDirection[mod][dir].byMode[mode].totalCorrect += r.score
-      byDirection[mod][dir].byMode[mode].totalAnswers += r.total
-      byDirection[mod][dir].byMode[mode].bestAccuracy  = Math.max(byDirection[mod][dir].byMode[mode].bestAccuracy, r.accuracy)
-    }
-    // Collapse totals → accuracy %
-    for (const mod of Object.keys(byDirection)) {
-      for (const dir of Object.keys(byDirection[mod])) {
-        const d = byDirection[mod][dir]
-        d.accuracy = d.totalAnswers > 0 ? Math.round((d.totalCorrect / d.totalAnswers) * 100) : 0
-        delete d.totalCorrect
-        delete d.totalAnswers
-        for (const mode of Object.keys(d.byMode)) {
-          const m = d.byMode[mode]
-          m.accuracy = m.totalAnswers > 0 ? Math.round((m.totalCorrect / m.totalAnswers) * 100) : 0
-          delete m.totalCorrect
-          delete m.totalAnswers
-        }
+    for (const modId of modules) {
+      const prog = loadProgress(playerId, modId)
+      for (const [code, rec] of Object.entries(prog)) {
+        if (rec?.strength === 'master') masteredCodes.add(code)
       }
     }
 
-    // ── mistakesByDirection — count per country per module+direction ───────────
-    // Only includes entries that have a `mistakes` array (Phase 6+).
-    // Old entries without mistakes are silently skipped — no backwards-compat issue.
-    // Shape: { moduleId: { directionId: { countryCode: count } } }
+    for (const round of history) {
+      const mod = round.moduleId ?? 'capitals'
+      const dir = round.direction ?? 'find-capital'
+      const mod_ = round.mode ?? 'multiple-choice'
+
+      // roundsByModule
+      if (!roundsByModule[mod]) roundsByModule[mod] = []
+      roundsByModule[mod].push(round)
+
+      // bestScoreByModule
+      const acc = round.accuracy ?? 0
+      if (!bestScoreByModule[mod] || acc > bestScoreByModule[mod]) {
+        bestScoreByModule[mod] = acc
+      }
+
+      // byDirection[mod][dir]
+      if (!byDirection[mod])      byDirection[mod] = {}
+      if (!byDirection[mod][dir]) byDirection[mod][dir] = { rounds: 0, accuracy: 0, bestAccuracy: 0, byMode: {} }
+      const dRef = byDirection[mod][dir]
+      dRef.rounds++
+      dRef.accuracy     = Math.round(((dRef.accuracy * (dRef.rounds - 1)) + acc) / dRef.rounds)
+      dRef.bestAccuracy = Math.max(dRef.bestAccuracy, acc)
+
+      // byDirection[mod][dir].byMode
+      if (!dRef.byMode[mod_]) dRef.byMode[mod_] = { rounds: 0, accuracy: 0, bestAccuracy: 0 }
+      const mRef = dRef.byMode[mod_]
+      mRef.rounds++
+      mRef.accuracy     = Math.round(((mRef.accuracy * (mRef.rounds - 1)) + acc) / mRef.rounds)
+      mRef.bestAccuracy = Math.max(mRef.bestAccuracy, acc)
+
+      // byMode (legacy flat structure)
+      if (!byMode[mod])       byMode[mod] = {}
+      if (!byMode[mod][mod_]) byMode[mod][mod_] = { rounds: 0, accuracy: 0, bestAccuracy: 0 }
+      const bmRef = byMode[mod][mod_]
+      bmRef.rounds++
+      bmRef.accuracy     = Math.round(((bmRef.accuracy * (bmRef.rounds - 1)) + acc) / bmRef.rounds)
+      bmRef.bestAccuracy = Math.max(bmRef.bestAccuracy, acc)
+    }
+
+    // mistakesByDirection
     const mistakesByDirection = {}
-    for (const r of history) {
-      if (!r.mistakes || r.mistakes.length === 0) continue
-      const mod = r.moduleId
-      const dir = r.direction ?? 'find-capital'
-      if (!mistakesByDirection[mod])       mistakesByDirection[mod]       = {}
-      if (!mistakesByDirection[mod][dir])  mistakesByDirection[mod][dir]  = {}
-      for (const code of r.mistakes) {
+    for (const round of history) {
+      if (!round.mistakes?.length) continue
+      const mod = round.moduleId ?? 'capitals'
+      const dir = round.direction ?? 'find-capital'
+      if (!mistakesByDirection[mod])      mistakesByDirection[mod] = {}
+      if (!mistakesByDirection[mod][dir]) mistakesByDirection[mod][dir] = {}
+      for (const code of round.mistakes) {
         mistakesByDirection[mod][dir][code] = (mistakesByDirection[mod][dir][code] ?? 0) + 1
       }
     }
 
     return {
-      totalRounds, totalCorrect, totalAnswers, accuracy,
-      masterCount, maxPerCountry, playedMods,
-      roundsByModule, bestScoreByModule,
+      totalRounds, accuracy,
+      masterCount:  masteredCodes.size,
+      countriesSeen: new Set(history.flatMap(r =>
+        (r.answers ?? []).map(a => a?.question?.country?.code).filter(Boolean)
+      )).size,
+      roundsByModule,
+      bestScoreByModule,
       byMode,
       byDirection,
       mistakesByDirection,
-      countriesSeen: allCodes.size,
     }
-  } catch {
+  } catch (err) {
+    console.warn('getStatsForPlayer error:', err)
     return {
-      totalRounds: 0, totalCorrect: 0, totalAnswers: 0, accuracy: 0,
-      masterCount: 0, maxPerCountry: 0, playedMods: [],
-      roundsByModule: {}, bestScoreByModule: {}, byMode: {}, byDirection: {},
-      mistakesByDirection: {},
-      countriesSeen: 0,
+      totalRounds: 0, accuracy: 0, masterCount: 0, countriesSeen: 0,
+      roundsByModule: {}, bestScoreByModule: {}, byMode: {}, byDirection: {}, mistakesByDirection: {},
     }
   }
 }
 
 // ── getLevelForPlayer ─────────────────────────────────────────────────────────
 
+const LEVELS = [
+  { level: 1,  minRounds: 0,   title: { en: 'Explorer',      el: 'Εξερευνητής'  } },
+  { level: 2,  minRounds: 5,   title: { en: 'Traveller',     el: 'Ταξιδιώτης'   } },
+  { level: 3,  minRounds: 15,  title: { en: 'Adventurer',    el: 'Περιηγητής'   } },
+  { level: 4,  minRounds: 30,  title: { en: 'Navigator',     el: 'Πλοηγός'      } },
+  { level: 5,  minRounds: 50,  title: { en: 'Cartographer',  el: 'Χαρτογράφος'  } },
+  { level: 6,  minRounds: 75,  title: { en: 'Geographer',    el: 'Γεωγράφος'    } },
+  { level: 7,  minRounds: 100, title: { en: 'World Scholar', el: 'Παγκόσμιος'   } },
+  { level: 8,  minRounds: 150, title: { en: 'Globe Master',  el: 'Κύριος Γης'   } },
+]
+
 export function getLevelForPlayer(playerId) {
-  try {
-    const rounds = loadHistory(playerId).length
-    if (rounds >= 100) return { level: 6, title: { en: 'Master',     el: 'Μαέστρος'     } }
-    if (rounds >= 50)  return { level: 5, title: { en: 'Advanced',   el: 'Προχωρημένος' } }
-    if (rounds >= 20)  return { level: 4, title: { en: 'Practising', el: 'Εξασκούμενος' } }
-    if (rounds >= 10)  return { level: 3, title: { en: 'Learner',    el: 'Μαθητής'      } }
-    if (rounds >= 3)   return { level: 2, title: { en: 'Beginner',   el: 'Αρχάριος'     } }
-    return               { level: 1, title: { en: 'New',         el: 'Νέος'         } }
-  } catch {
-    return { level: 1, title: { en: 'New', el: 'Νέος' } }
+  const stats = getStatsForPlayer(playerId)
+  let best = LEVELS[0]
+  for (const lvl of LEVELS) {
+    if (stats.totalRounds >= lvl.minRounds) best = lvl
   }
+  return best
 }
 
-/**
- * getGlobalMasterCount(playerId)
- *
- * Counts distinct country codes that have reached `strength: 'master'`
- * in ANY module. France mastered in both capitals + flags still counts as 1.
- *
- * Returns a number (0 if no data).
- * Pure function — safe to call anywhere, no hooks needed.
- */
+// ── getGlobalMasterCount ──────────────────────────────────────────────────────
+
 export function getGlobalMasterCount(playerId) {
   try {
-    const prefix  = `geofamily_progress_${playerId}_`
+    const prefix   = `geofamily_progress_${playerId}_`
     const mastered = new Set()
     for (const key of Object.keys(localStorage)) {
       if (!key.startsWith(prefix)) continue
@@ -292,15 +239,14 @@ export function getGlobalMasterCount(playerId) {
       }
     }
     return mastered.size
-  } catch {
-    return 0
-  }
+  } catch { return 0 }
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function usePlayerProgress(moduleId) {
   const { activePlayer } = usePlayer()
+  const { pushProgress, pushHistory } = useSync()
 
   const getProgress = useCallback(() => {
     if (!activePlayer || !moduleId) return {}
@@ -313,16 +259,18 @@ export function usePlayerProgress(moduleId) {
     return progress[countryCode] ?? { correct: 0, wrong: 0, lastSeen: null, strength: 'new' }
   }, [activePlayer, moduleId])
 
-  // Phase 5: added `direction` param
-  // Phase 6: added `mistakes` param — array of country codes answered wrong this round.
-  //          Used by GameModeTab (Phase 6+) for per-direction most-missed breakdown.
-  //          Old entries without mistakes default to [] at read time.
-  const recordRound = useCallback((answers, roundScore, roundTotal, mode = 'multiple-choice', direction = 'find-capital', mistakes = []) => {
+  const recordRound = useCallback((
+    answers,
+    roundScore,
+    roundTotal,
+    mode      = 'multiple-choice',
+    direction = 'find-capital',
+    mistakes  = [],
+  ) => {
     if (!activePlayer || !moduleId) return
     const today    = new Date().toISOString().split('T')[0]
     const progress = loadProgress(activePlayer.id, moduleId)
 
-    // SRS update — mode-agnostic and direction-agnostic
     for (const answer of answers) {
       const code    = answer.question.country.code
       const current = progress[code] ?? { correct: 0, wrong: 0 }
@@ -332,20 +280,25 @@ export function usePlayerProgress(moduleId) {
     }
     saveProgress(activePlayer.id, moduleId, progress)
 
-    // History entry — includes direction + mistakes (Phase 6)
     const history = loadHistory(activePlayer.id)
-    history.push({
+    const newRound = {
       moduleId,
       direction,
       mode,
-      date:     today,
-      score:    roundScore,
-      total:    roundTotal,
-      accuracy: Math.round((roundScore / roundTotal) * 100),
-      ...(mistakes.length > 0 ? { mistakes } : {}),  // omit key if empty to save space
-    })
+      date:      today,
+      timestamp: new Date().toISOString(),
+      score:     roundScore,
+      total:     roundTotal,
+      accuracy:  Math.round((roundScore / roundTotal) * 100),
+      ...(mistakes.length > 0 ? { mistakes } : {}),
+    }
+    history.push(newRound)
     saveHistory(activePlayer.id, history)
-  }, [activePlayer, moduleId])
+
+    // 8A: push to Firestore fire-and-forget
+    pushProgress(activePlayer.id, moduleId, progress)
+    pushHistory(activePlayer.id, history)
+  }, [activePlayer, moduleId, pushProgress, pushHistory])
 
   const getStats = useCallback(() => {
     if (!activePlayer) return null

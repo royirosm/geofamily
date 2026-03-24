@@ -257,6 +257,42 @@ const translations = {
   sovCorrectAnswer:      { en: 'Correct answer',        el: 'Σωστή απάντηση'                },
   sovFindSovereignPrompt:{ en: 'Which country governs this territory?',
                            el: 'Ποια χώρα διοικεί αυτό το έδαφος;'                         },
+
+  // ── Family Sync section in SettingsModal ──────────────────────────────────────
+  syncTitle:                { en: 'Family Sync',                          el: 'Συγχρονισμός Οικογένειας' },
+  syncActive:               { en: 'Active',                               el: 'Ενεργό' },
+  syncHint:                 { en: 'Link devices so your whole family shares players and progress.',
+                            el: 'Συνδέστε συσκευές για να μοιράζεστε παίκτες και πρόοδο.' },
+  syncCreate:               { en: 'Create a family',                      el: 'Δημιουργία οικογένειας' },
+  syncCreateHint:           { en: 'Give your family a name for the leaderboard.',
+                            el: 'Δώστε ένα όνομα για την κατάταξη.' },
+  syncCreateConfirm:        { en: 'Create',                               el: 'Δημιουργία' },
+  syncFamilyNamePlaceholder:{ en: 'e.g. The Smiths',                      el: 'π.χ. Οικογένεια Παπαδόπουλου' },
+  syncJoin:                 { en: 'Join with a PIN',                      el: 'Σύνδεση με PIN' },
+  syncJoinHint:             { en: 'Enter the 6-digit PIN shown on the other device.',
+                            el: 'Πληκτρολογήστε το 6ψήφιο PIN που εμφανίζεται στην άλλη συσκευή.' },
+  syncJoinConfirm:          { en: 'Join',                                 el: 'Σύνδεση' },
+  syncLinkDevice:           { en: 'Link another device',                  el: 'Σύνδεση άλλης συσκευής' },
+  syncLeave:                { en: 'Leave family',                         el: 'Αποχώρηση από οικογένεια' },
+  syncFamilyActive:         { en: 'Syncing across devices',               el: 'Συγχρονισμός σε όλες τις συσκευές' },
+  syncUnnamedFamily:        { en: 'My Family',                            el: 'Η Οικογένειά μου' },
+
+  // ── PIN display ───────────────────────────────────────────────────────────────
+  syncPinLabel:             { en: 'Enter this PIN on the other device:',  el: 'Εισάγετε αυτό το PIN στην άλλη συσκευή:' },
+  syncPinExpiry:            { en: 'Valid for 10 minutes',                 el: 'Ισχύει για 10 λεπτά' },
+  syncPinDismiss:           { en: 'Dismiss',                              el: 'Κλείσιμο' },
+
+  // ── PIN error messages ────────────────────────────────────────────────────────
+  syncPinNotFound:          { en: 'PIN not found. Check and try again.',  el: 'Το PIN δεν βρέθηκε. Ελέγξτε και δοκιμάστε ξανά.' },
+  syncPinExpired:           { en: 'PIN has expired. Generate a new one.', el: 'Το PIN έληξε. Δημιουργήστε νέο.' },
+  syncPinInvalid:           { en: 'Enter a 6-digit PIN.',                 el: 'Εισάγετε 6ψήφιο PIN.' },
+  syncPinNetwork:           { en: 'Network error. Try again.',            el: 'Σφάλμα δικτύου. Δοκιμάστε ξανά.' },
+
+  syncPinNoFamily:   { en: 'No family set up yet.',                       el: 'Δεν έχει οριστεί οικογένεια.' },
+  syncLeaveTitle:    { en: 'Leave family?',                               el: 'Αποχώρηση από οικογένεια;' },
+  syncLeaveWarning:  { en: 'Your data stays on this device, but sync will stop. To rejoin you\'ll need a new PIN.',
+                     el: 'Τα δεδομένα σας παραμένουν στη συσκευή, αλλά ο συγχρονισμός θα σταματήσει. Για επανασύνδεση θα χρειαστείτε νέο PIN.' },
+  syncLeaveConfirm:  { en: 'Leave',                                       el: 'Αποχώρηση' },
 }
 
 export default translations

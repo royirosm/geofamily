@@ -1,18 +1,12 @@
-// PlayerContext.jsx
-// Manages all player profiles and tracks which player is currently active.
-// Profiles and the active player ID are persisted to localStorage.
-//
-// Each profile shape:
-// {
-//   id:          string (UUID)
-//   name:        string
-//   avatar:      string (emoji)
-//   avatarBg:    string (tailwind bg class, e.g. 'bg-blue-400')
-//   accentColor: string (tailwind color name, e.g. 'blue')
-//   createdAt:   ISO string
-// }
+// src/context/PlayerContext.jsx
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 8A: pushPlayers() called (fire-and-forget) after every CRUD operation
+//           so the Firestore players list stays current automatically.
+//           useSync is imported and called inside the provider.
+// ─────────────────────────────────────────────────────────────────────────────
 
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useCallback } from 'react'
+import { useSync } from '../hooks/useSync'
 
 const PlayerContext = createContext(null)
 
@@ -37,7 +31,7 @@ function loadActiveId() {
 function saveActiveId(id) {
   try {
     if (id) localStorage.setItem(ACTIVE_KEY, id)
-    else localStorage.removeItem(ACTIVE_KEY)
+    else    localStorage.removeItem(ACTIVE_KEY)
   } catch {}
 }
 
@@ -45,7 +39,26 @@ export function PlayerProvider({ children }) {
   const [profiles, setProfiles] = useState(loadProfiles)
   const [activeId, setActiveId] = useState(loadActiveId)
 
+  const { pushPlayers, pullAndMerge } = useSync()
+
   const activePlayer = profiles.find(p => p.id === activeId) ?? null
+
+  // ── Pull on mount ─────────────────────────────────────────────────────────
+  // Runs once when the app opens. Merges Firestore → localStorage, then
+  // refreshes the in-memory profiles so the UI reflects the merged list.
+  const syncOnOpen = useCallback(async () => {
+    await pullAndMerge()
+    // Re-read localStorage after merge (pullAndMerge wrote to it directly)
+    const refreshed = loadProfiles()
+    setProfiles(refreshed)
+    // If the active player was deleted during merge, clear selection
+    if (activeId && !refreshed.find(p => p.id === activeId)) {
+      setActiveId(null)
+      saveActiveId(null)
+    }
+  }, [pullAndMerge, activeId])
+
+  // ── CRUD ──────────────────────────────────────────────────────────────────
 
   function addPlayer(name, avatar, avatarBg, accentColor) {
     const newPlayer = {
@@ -55,22 +68,31 @@ export function PlayerProvider({ children }) {
       avatarBg:    avatarBg    ?? 'bg-blue-400',
       accentColor: accentColor ?? 'blue',
       createdAt:   new Date().toISOString(),
+      updatedAt:   new Date().toISOString(),
     }
     const updated = [...profiles, newPlayer]
     setProfiles(updated)
     saveProfiles(updated)
+    pushPlayers(updated)   // fire-and-forget
     return newPlayer
   }
 
   function updatePlayer(id, { name, avatar, avatarBg, accentColor }) {
     const updated = profiles.map(p =>
       p.id === id
-        ? { ...p, name: name?.trim() ?? p.name, avatar: avatar ?? p.avatar,
-            avatarBg: avatarBg ?? p.avatarBg, accentColor: accentColor ?? p.accentColor }
+        ? {
+            ...p,
+            name:        name?.trim()   ?? p.name,
+            avatar:      avatar         ?? p.avatar,
+            avatarBg:    avatarBg       ?? p.avatarBg,
+            accentColor: accentColor    ?? p.accentColor,
+            updatedAt:   new Date().toISOString(),
+          }
         : p
     )
     setProfiles(updated)
     saveProfiles(updated)
+    pushPlayers(updated)   // fire-and-forget
   }
 
   function removePlayer(id) {
@@ -78,6 +100,7 @@ export function PlayerProvider({ children }) {
     setProfiles(updated)
     saveProfiles(updated)
     if (activeId === id) { setActiveId(null); saveActiveId(null) }
+    pushPlayers(updated)   // fire-and-forget
   }
 
   function switchPlayer(id) {
@@ -94,6 +117,7 @@ export function PlayerProvider({ children }) {
     <PlayerContext.Provider value={{
       profiles, activePlayer, activeId,
       addPlayer, updatePlayer, removePlayer, switchPlayer, clearActivePlayer,
+      syncOnOpen,
     }}>
       {children}
     </PlayerContext.Provider>

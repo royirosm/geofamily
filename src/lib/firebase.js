@@ -1,10 +1,18 @@
-// firebase.js
-// Initialises Firebase and exports the Firestore db instance.
-// Config values are read from Vite environment variables (.env.local).
-// Never commit .env.local to git.
+// src/lib/firebase.js
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 8A: Added Firebase Anonymous Auth.
+// Fix 10: Explicitly enable IndexedDB offline persistence so the PWA works
+//         fully offline. persistentMultipleTabManager allows the same family
+//         to be open in multiple browser tabs simultaneously.
+// ─────────────────────────────────────────────────────────────────────────────
 
-import { initializeApp }  from 'firebase/app'
-import { getFirestore }   from 'firebase/firestore'
+import { initializeApp }                        from 'firebase/app'
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+}                                               from 'firebase/firestore'
+import { getAuth }                              from 'firebase/auth'
 
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
@@ -16,4 +24,12 @@ const firebaseConfig = {
 }
 
 const app = initializeApp(firebaseConfig)
-export const db = getFirestore(app)
+
+// Explicit IndexedDB persistence — replaces getFirestore() default
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager(),
+  }),
+})
+
+export const auth = getAuth(app)
