@@ -1,12 +1,16 @@
 // src/modules/capitals/find-capital/TypeAnswer.jsx
 // ─────────────────────────────────────────────────────────────────────────────
-// Capitals › Find the Capital › Type Answer
-// Given a country name + flag → type the capital city name.
+// Phase 8B: TerritoryBadge added below country name in stimulus
+// Phase 8C: regionFilter passed to generateQuestions via CONFIG.generateFn
+//           Note: TypeAnswerBase calls config.generateFn(countries, lang, ageMode,
+//           count, progress, globalMasterCount, regionFilter) — regionFilter is
+//           read from location.state inside TypeAnswerBase and forwarded here.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import TypeAnswerBase from '../../_shared/TypeAnswerBase'
 import { generateQuestions } from '../../../utils/questionGenerator'
 import FlagImage             from '../../../components/FlagImage'
+import TerritoryBadge        from '../../../components/TerritoryBadge'
 
 const CONFIG = {
   moduleId:    'capitals',
@@ -14,7 +18,6 @@ const CONFIG = {
   accentColor: 'blue',
   generateFn:  generateQuestions,
 
-  // Returns what the base component renders as the question stimulus
   getQuestion(question, lang) {
     const country       = question.country
     const correctAnswer = question.correctCapital ?? question.correctAnswer
@@ -31,14 +34,13 @@ const CONFIG = {
               className="w-56 h-36 object-cover"
             />
           </div>
-          {/* Country name */}
-          <div className="text-center">
-            <p className="text-gray-400 text-xs mb-1">
-              {/* prompt text comes from translation key in base component */}
-            </p>
-            <h2 className="font-extrabold text-gray-800 text-2xl leading-tight">
+          {/* Country name + territory badge */}
+          <div className="flex flex-col items-center gap-1">
+            <h2 className="font-extrabold text-gray-800 text-2xl leading-tight text-center">
               {country.name[lang] ?? country.name.en}
             </h2>
+            {/* 8B: territory badge */}
+            <TerritoryBadge sovereign={country.sovereign} lang={lang} />
           </div>
         </div>
       ),

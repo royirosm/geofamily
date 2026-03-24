@@ -1,176 +1,164 @@
 // src/utils/questionGenerator.js
 // ─────────────────────────────────────────────────────────────────────────────
-// Generates quiz questions for all module/direction combinations.
-//
-// KIDS DYNAMIC POOL SYSTEM (Phase 7):
-//   Kids start with 40 base countries. For every 5 countries mastered globally
-//   (across all modules), 5 new countries unlock. Pool grows deterministically
-//   from KIDS_COUNTRY_ORDER. No new storage — derived from existing SRS data.
-//   Call getKidsPoolSize(globalMasterCount) to get current pool ceiling.
-//
-// AGE MODES (Phase 7):
-//   'kids'     — dynamic tiered pool (40 + unlocks), 3 choices, large UI
-//   'familiar' — curated ~100 well-known sovereign states, 4 choices
-//   'expert'   — all ~235 countries with a capital, 4 choices
-//
-// Exported generators:
-//   generateQuestions              → capitals / find-capital
-//   generateReverseQuestions       → capitals / find-country
-//   generateFlagToCountryQuestions → flags / flag-to-country
-//   generateCountryToFlagQuestions → flags / country-to-flag
-//   generateSovereigntyBinaryQuestions → sovereignty / country-or-territory
-//   generateFindSovereignQuestions → sovereignty / find-sovereign
-//
-// Exported helpers:
-//   getKidsPoolSize(globalMasterCount) → current kids pool ceiling
-//   getKidsUnlockInfo(before, after)   → { newUnlocks } for results celebration
+// Phase 8C additions:
+//   - buildPool() accepts optional `regionFilter` string (e.g. 'Europe')
+//   - When regionFilter is set (and not 'all'), eligible countries are filtered
+//     to that region AFTER age-mode filtering, before SRS weighting
+//   - All 4 main generators pass regionFilter through to buildPool
+//   - Sovereignty generators are unaffected (no region concept there)
+//   - Generator signature:
+//       generateQuestions(countries, lang, ageMode, count, progressMap, globalMasterCount, regionFilter)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { STRENGTH_WEIGHTS } from '../hooks/usePlayerProgress'
-import { SOVEREIGN_POOL }   from '../i18n/countries/sovereigns'
+// ── Kids unlock helpers ───────────────────────────────────────────────────────
 
-// ── Kids unlock constants ─────────────────────────────────────────────────────
-export const KIDS_BASE_SIZE    = 40   // starting pool
-export const KIDS_UNLOCK_EVERY = 5    // master this many → unlock more
-export const KIDS_UNLOCK_BATCH = 5    // how many unlock each time
+const KIDS_BASE_SIZE = 40
+const KIDS_STEP_SIZE = 5   // unlock 5 more per 5 mastered
 
-/** Given global master count, return current kids pool ceiling */
 export function getKidsPoolSize(globalMasterCount) {
-  const unlocked = Math.floor(globalMasterCount / KIDS_UNLOCK_EVERY) * KIDS_UNLOCK_BATCH
-  return KIDS_BASE_SIZE + unlocked
+  return KIDS_BASE_SIZE + Math.floor(globalMasterCount / KIDS_STEP_SIZE) * KIDS_STEP_SIZE
 }
 
-/** Returns how many new countries just unlocked between two master counts */
 export function getKidsUnlockInfo(mastersBefore, mastersAfter) {
-  const thresholdBefore = Math.floor(mastersBefore / KIDS_UNLOCK_EVERY)
-  const thresholdAfter  = Math.floor(mastersAfter  / KIDS_UNLOCK_EVERY)
-  const newUnlocks      = (thresholdAfter - thresholdBefore) * KIDS_UNLOCK_BATCH
-  return { newUnlocks: Math.max(0, newUnlocks) }
+  const before = getKidsPoolSize(mastersBefore)
+  const after  = getKidsPoolSize(mastersAfter)
+  return { newUnlocks: Math.max(0, after - before) }
 }
 
-// ── Kids country order ────────────────────────────────────────────────────────
-// Ordered by recognisability to a 5–9 year old in a typical Western/Mediterranean
-// household. Tier 1 = base 40, Tier 2 = next 40, Tier 3 = next 40, Tier 4 = rest.
-// The question generator takes the first N codes from this list based on pool size.
-//
-// All 4 tiers listed here = ~160 codes. Anything not listed comes after them
-// (the full countries array is appended as a final catch-all in buildKidsPool).
+// ── Familiar pool (~100 well-known sovereign states) ─────────────────────────
+export const FAMILIAR_COUNTRIES = new Set([
+  'AF','AL','DZ','AD','AO','AG','AR','AM','AU','AT','AZ','BS','BH','BD','BB',
+  'BY','BE','BZ','BJ','BT','BO','BA','BW','BR','BN','BG','BF','BI','CV','KH',
+  'CM','CA','CF','TD','CL','CN','CO','KM','CG','CR','HR','CU','CY','CZ','DK',
+  'DJ','DM','DO','EC','EG','SV','GQ','ER','EE','SZ','ET','FJ','FI','FR','GA',
+  'GM','GE','DE','GH','GR','GD','GT','GN','GW','GY','HT','HN','HU','IS','IN',
+  'ID','IR','IQ','IE','IL','IT','JM','JP','JO','KZ','KE','KI','KP','KR','KW',
+  'KG','LA','LV','LB','LS','LR','LY','LI','LT','LU','MG','MW','MY','MV','ML',
+  'MT','MH','MR','MU','MX','FM','MD','MC','MN','ME','MA','MZ','MM','NA','NR',
+  'NP','NL','NZ','NI','NE','NG','NO','OM','PK','PW','PA','PG','PY','PE','PH',
+  'PL','PT','QA','RO','RU','RW','KN','LC','VC','WS','SM','ST','SA','SN','RS',
+  'SC','SL','SG','SK','SI','SB','SO','ZA','SS','ES','LK','SD','SR','SE','CH',
+  'SY','TW','TJ','TZ','TH','TL','TG','TO','TT','TN','TR','TM','TV','UG','UA',
+  'AE','GB','US','UY','UZ','VU','VE','VN','YE','ZM','ZW',
+])
 
+// ── Common territories (kids sovereignty) ────────────────────────────────────
+export const COMMON_TERRITORIES = new Set([
+  'PR','GU','VI','AS','MP',          // US territories
+  'GI','HK','MO','FK','BM','KY',     // GB / other
+  'GP','MQ','GF','RE','NC','PF','MF',// FR territories
+  'AW','CW','SX','BQ',               // NL territories
+  'GL','FO',                         // DK territories
+  'GG','JE','IM',                    // Crown dependencies
+])
+
+// ── Kids country order (4 tiers of 40) ───────────────────────────────────────
 export const KIDS_COUNTRY_ORDER = [
-  // ── Tier 1 — base 40 (most recognisable globally) ──────────────────────────
+  // Tier 1
   'FR','DE','IT','ES','GB','US','CA','BR','AR','MX',
   'RU','CN','JP','IN','AU','ZA','EG','NG','KE','MA',
   'GR','CY','TR','IL','SA','AE','TH','KR','ID','NZ',
   'SE','NO','DK','FI','PL','NL','BE','CH','AT','PT',
-
-  // ── Tier 2 — next 40 (European fills + larger world countries) ─────────────
-  'IE','HU','RO','UA','CZ','SK','HR','RS','GE','AM',   // Europe + Caucasus
-  'PK','BD','VN','PH','MM','ET','TZ','ZW','ZM','SN',   // Asia + Africa
-  'CO','VE','EC','BO','PY','UY','CU','DO','CR','PA',   // Latin America
-  'LB','JO','IQ','KW','QA','BH','OM','YE','LY','TN',   // Middle East + N Africa
-
-  // ── Tier 3 — next 40 (smaller but notable countries) ───────────────────────
-  'GT','HN','SV','NI','JM','HT','BS','TT','BB','LC',   // Central America + Caribbean
-  'LT','LV','EE','SI','BA','ME','MK','AL','MD','BY',   // Eastern Europe
-  'AZ','KZ','UZ','KG','TJ','TM','AF','NP','LK','KH',   // Central + S Asia
-  'GH','CI','CM','AO','MZ','MG','RW','UG','MW','NA',   // Sub-Saharan Africa
-
-  // ── Tier 4 — next 40 (less common but still notable) ───────────────────────
-  'TG','BJ','BF','ML','NE','GN','SL','LR','GM','GW',   // W Africa
-  'CF','TD','CG','CD','GA','GQ','NR','SS','ER','DJ',   // C + E Africa
-  'SO','MR','CV','ST','SC','MU','KM','BI','SZ','LS',   // Islands + S Africa
-  'FJ','PG','SB','VU','TO','WS','FM','PW','KI','TV',   // Pacific
+  // Tier 2
+  'IE','HU','RO','UA','CZ','SK','HR','RS','GE','AM',
+  'PK','BD','VN','PH','MM','ET','TZ','ZW','ZM','SN',
+  'CO','VE','EC','BO','PY','UY','CU','DO','CR','PA',
+  'LB','JO','IQ','KW','QA','BH','OM','YE','LY','TN',
+  // Tier 3
+  'GT','HN','SV','NI','JM','HT','BS','TT','BB','LC',
+  'LT','LV','EE','SI','BA','ME','MK','AL','MD','BY',
+  'AZ','KZ','UZ','KG','TJ','TM','AF','NP','LK','KH',
+  'GH','CI','CM','AO','MZ','MG','RW','UG','MW','NA',
+  // Tier 4
+  'TG','BJ','BF','ML','NE','GN','SL','LR','GM','GW',
+  'CF','TD','CG','CD','GA','GQ','NR','SS','ER','DJ',
+  'SO','MR','CV','ST','SC','MU','KM','BI','SZ','LS',
+  'FJ','PG','SB','VU','TO','WS','FM','PW','KI','TV',
 ]
 
-// ── Familiar pool (~100 well-known sovereign states) ─────────────────────────
-// Curated list for 'familiar' mode — adults who want a manageable pool.
-// All UN member states that are regularly in news/curricula, pop > ~500k,
-// plus a few smaller but very well-known ones (IS, MT, LU, CY, etc.).
-// Excludes: microstates under 100k, most territories, very remote islands.
+// ── Sovereign pool for find-sovereign distractors ────────────────────────────
+export const SOVEREIGN_POOL = [
+  { code: 'GB', flag: 'https://flagcdn.com/gb.svg', name: { en: 'United Kingdom', el: 'Ηνωμένο Βασίλειο' } },
+  { code: 'US', flag: 'https://flagcdn.com/us.svg', name: { en: 'United States',  el: 'Ηνωμένες Πολιτείες' } },
+  { code: 'FR', flag: 'https://flagcdn.com/fr.svg', name: { en: 'France',          el: 'Γαλλία' } },
+  { code: 'NL', flag: 'https://flagcdn.com/nl.svg', name: { en: 'Netherlands',     el: 'Ολλανδία' } },
+  { code: 'DK', flag: 'https://flagcdn.com/dk.svg', name: { en: 'Denmark',         el: 'Δανία' } },
+  { code: 'NO', flag: 'https://flagcdn.com/no.svg', name: { en: 'Norway',          el: 'Νορβηγία' } },
+  { code: 'AU', flag: 'https://flagcdn.com/au.svg', name: { en: 'Australia',       el: 'Αυστραλία' } },
+  { code: 'NZ', flag: 'https://flagcdn.com/nz.svg', name: { en: 'New Zealand',     el: 'Νέα Ζηλανδία' } },
+  { code: 'CN', flag: 'https://flagcdn.com/cn.svg', name: { en: 'China',           el: 'Κίνα' } },
+  { code: 'FI', flag: 'https://flagcdn.com/fi.svg', name: { en: 'Finland',         el: 'Φινλανδία' } },
+]
 
-export const FAMILIAR_COUNTRIES = new Set([
-  // Europe (34)
-  'FR','DE','IT','ES','GB','PT','NL','BE','CH','AT',
-  'SE','NO','DK','FI','PL','CZ','SK','HU','RO','UA',
-  'GR','TR','HR','RS','BA','SI','BG','MK','AL','ME',
-  'IE','IS','LU','MT','CY','GE','AM','AZ','MD','BY',
-  // Americas (18)
-  'US','CA','MX','BR','AR','CO','VE','PE','CL','EC',
-  'BO','PY','UY','CU','DO','GT','HN','CR',
-  // Africa (20)
-  'EG','MA','TN','LY','DZ','NG','ZA','KE','ET','GH',
-  'TZ','CM','CI','SN','AO','MZ','ZM','ZW','SD','SS',
-  // Asia (22)
-  'CN','JP','KR','IN','PK','BD','VN','TH','ID','PH',
-  'MY','MM','KH','NP','LK','IR','IQ','SA','AE','IL',
-  'JO','KW',
-  // Oceania (2)
-  'AU','NZ',
-  // Russia + Central Asia (4)
-  'RU','KZ','UZ','AF',
-])
+// ── SRS weights ───────────────────────────────────────────────────────────────
+export const STRENGTH_WEIGHTS = {
+  new:        10,
+  beginner:   8,
+  learner:    6,
+  practising: 4,
+  advanced:   2,
+  master:     1,
+}
 
-// ── Territories considered "common" for Kids sovereignty module ───────────────
-export const COMMON_TERRITORIES = new Set([
-  'GU','PR','VI','AS','MP',   // US
-  'GI','FK','BM','VG','KY',   // UK
-  'NC','PF','GP','MQ','RE',   // France
-  'AW','CW',                  // Netherlands
-  'GL','FO',                  // Denmark
-  'HK','MO',                  // China
-])
-
-// ── Utilities ─────────────────────────────────────────────────────────────────
+// ── Utility ───────────────────────────────────────────────────────────────────
 
 function shuffle(arr) {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[a[i], a[j]] = [a[j], a[i]]
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
   }
   return a
 }
 
 function weightedSample(pool, count) {
-  const selected  = []
-  const remaining = [...pool]
-  for (let i = 0; i < count && remaining.length > 0; i++) {
-    const totalWeight = remaining.reduce((sum, e) => sum + e.weight, 0)
-    let rand = Math.random() * totalWeight
-    let idx  = 0
-    for (; idx < remaining.length - 1; idx++) {
-      rand -= remaining[idx].weight
-      if (rand <= 0) break
+  const result = []
+  const used   = new Set()
+  const total  = () => pool.reduce((s, e) => s + (used.has(e.item.code) ? 0 : e.weight), 0)
+  for (let i = 0; i < count && used.size < pool.length; i++) {
+    let r = Math.random() * total()
+    for (const entry of pool) {
+      if (used.has(entry.item.code)) continue
+      r -= entry.weight
+      if (r <= 0) { result.push(entry.item); used.add(entry.item.code); break }
     }
-    selected.push(remaining[idx].item)
-    remaining.splice(idx, 1)
   }
-  return selected
+  return result
 }
 
 function cap(country, lang) {
-  if (!country.capital) return ''
-  if (typeof country.capital === 'object') return country.capital[lang] ?? country.capital.en ?? ''
-  return country.capital
+  return country.capital?.[lang] ?? country.capital?.en ?? ''
 }
 
 function name(country, lang) {
-  if (typeof country.name === 'object') return country.name[lang] ?? country.name.en ?? ''
-  return country.name
+  return country.name?.[lang] ?? country.name?.en ?? ''
 }
 
-// ── Pool builders ─────────────────────────────────────────────────────────────
+// ── Kids pool builder ─────────────────────────────────────────────────────────
 
-/**
- * Builds the eligible country set + SRS-weighted pool for a given mode.
- *
- * ageMode 'kids'     → dynamic tiered set, size = getKidsPoolSize(globalMasterCount)
- * ageMode 'familiar' → FAMILIAR_COUNTRIES set
- * ageMode 'expert'   → all countries (legacy 'explorer' also maps here)
- *
- * globalMasterCount only needed for kids mode; pass 0 for other modes.
- */
-function buildPool(countries, lang, ageMode, progressMap, requireCapital = true, globalMasterCount = 0) {
+function buildKidsEligibleCodes(countries, poolSize) {
+  const allCodes = new Set(countries.map(c => c.code))
+  const ordered  = KIDS_COUNTRY_ORDER.filter(code => allCodes.has(code))
+  const unlisted = [...allCodes].filter(code => !KIDS_COUNTRY_ORDER.includes(code)).sort()
+  const full     = [...ordered, ...unlisted]
+  return new Set(full.slice(0, poolSize))
+}
+
+// ── Pool builder ──────────────────────────────────────────────────────────────
+//
+// Phase 8C: accepts optional `regionFilter` param.
+// When set and not 'all', eligible countries are filtered to that region
+// AFTER age-mode filtering, so region narrows within the age pool.
+
+function buildPool(
+  countries,
+  lang,
+  ageMode,
+  progressMap,
+  requireCapital   = true,
+  globalMasterCount = 0,
+  regionFilter     = 'all',
+) {
   let eligible
 
   if (ageMode === 'kids') {
@@ -188,11 +176,15 @@ function buildPool(countries, lang, ageMode, progressMap, requireCapital = true,
       FAMILIAR_COUNTRIES.has(c.code)
     )
   } else {
-    // 'expert' or legacy 'explorer' — all countries
     eligible = countries.filter(c =>
       c.flag &&
       (!requireCapital || (c.capital && cap(c, lang)))
     )
+  }
+
+  // 8C: apply region filter (skip for 'all' or undefined)
+  if (regionFilter && regionFilter !== 'all') {
+    eligible = eligible.filter(c => c.region === regionFilter)
   }
 
   const pool = eligible.map(country => ({
@@ -203,27 +195,15 @@ function buildPool(countries, lang, ageMode, progressMap, requireCapital = true,
   return { eligible, pool }
 }
 
-/**
- * Builds the set of country codes eligible for kids mode.
- * Takes first `poolSize` codes from KIDS_COUNTRY_ORDER,
- * then appends any remaining countries not already listed
- * (so the pool never has gaps if a code is missing from the order list).
- */
-function buildKidsEligibleCodes(countries, poolSize) {
-  const allCodes  = new Set(countries.map(c => c.code))
-  const ordered   = KIDS_COUNTRY_ORDER.filter(code => allCodes.has(code))
-  // Append any country codes not in our order list at the end
-  const unlisted  = [...allCodes].filter(code => !KIDS_COUNTRY_ORDER.includes(code)).sort()
-  const full      = [...ordered, ...unlisted]
-  return new Set(full.slice(0, poolSize))
-}
-
 // ── capitals / find-capital ───────────────────────────────────────────────────
 
-export function generateQuestions(countries, lang, ageMode, count, progressMap = {}, globalMasterCount = 0) {
+export function generateQuestions(
+  countries, lang, ageMode, count,
+  progressMap = {}, globalMasterCount = 0, regionFilter = 'all',
+) {
   const isKids             = ageMode === 'kids'
   const choicesPerQuestion = isKids ? 3 : 4
-  const { eligible, pool } = buildPool(countries, lang, ageMode, progressMap, true, globalMasterCount)
+  const { eligible, pool } = buildPool(countries, lang, ageMode, progressMap, true, globalMasterCount, regionFilter)
 
   if (eligible.length < choicesPerQuestion) return []
 
@@ -250,10 +230,13 @@ export function generateQuestions(countries, lang, ageMode, count, progressMap =
 
 // ── capitals / find-country ───────────────────────────────────────────────────
 
-export function generateReverseQuestions(countries, lang, ageMode, count, progressMap = {}, globalMasterCount = 0) {
+export function generateReverseQuestions(
+  countries, lang, ageMode, count,
+  progressMap = {}, globalMasterCount = 0, regionFilter = 'all',
+) {
   const isKids             = ageMode === 'kids'
   const choicesPerQuestion = isKids ? 3 : 4
-  const { eligible, pool } = buildPool(countries, lang, ageMode, progressMap, true, globalMasterCount)
+  const { eligible, pool } = buildPool(countries, lang, ageMode, progressMap, true, globalMasterCount, regionFilter)
 
   if (eligible.length < choicesPerQuestion) return []
 
@@ -281,10 +264,13 @@ export function generateReverseQuestions(countries, lang, ageMode, count, progre
 
 // ── flags / flag-to-country ───────────────────────────────────────────────────
 
-export function generateFlagToCountryQuestions(countries, lang, ageMode, count, progressMap = {}, globalMasterCount = 0) {
+export function generateFlagToCountryQuestions(
+  countries, lang, ageMode, count,
+  progressMap = {}, globalMasterCount = 0, regionFilter = 'all',
+) {
   const isKids             = ageMode === 'kids'
   const choicesPerQuestion = isKids ? 3 : 4
-  const { eligible, pool } = buildPool(countries, lang, ageMode, progressMap, false, globalMasterCount)
+  const { eligible, pool } = buildPool(countries, lang, ageMode, progressMap, false, globalMasterCount, regionFilter)
 
   if (eligible.length < choicesPerQuestion) return []
 
@@ -310,10 +296,13 @@ export function generateFlagToCountryQuestions(countries, lang, ageMode, count, 
 
 // ── flags / country-to-flag ───────────────────────────────────────────────────
 
-export function generateCountryToFlagQuestions(countries, lang, ageMode, count, progressMap = {}, globalMasterCount = 0) {
+export function generateCountryToFlagQuestions(
+  countries, lang, ageMode, count,
+  progressMap = {}, globalMasterCount = 0, regionFilter = 'all',
+) {
   const isKids             = ageMode === 'kids'
   const choicesPerQuestion = isKids ? 3 : 4
-  const { eligible, pool } = buildPool(countries, lang, ageMode, progressMap, false, globalMasterCount)
+  const { eligible, pool } = buildPool(countries, lang, ageMode, progressMap, false, globalMasterCount, regionFilter)
 
   if (eligible.length < choicesPerQuestion) return []
 
@@ -337,6 +326,7 @@ export function generateCountryToFlagQuestions(countries, lang, ageMode, count, 
 }
 
 // ── sovereignty / country-or-territory ───────────────────────────────────────
+// (no regionFilter — sovereignty is global by nature)
 
 export function generateSovereigntyBinaryQuestions(countries, lang, ageMode, count, progressMap = {}) {
   const isKids = ageMode === 'kids'

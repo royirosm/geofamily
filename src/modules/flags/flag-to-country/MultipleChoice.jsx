@@ -1,10 +1,7 @@
 // src/modules/flags/flag-to-country/MultipleChoice.jsx
 // ─────────────────────────────────────────────────────────────────────────────
-// Flags › Flag → Country › Multiple Choice
-// Given a large flag image → pick the correct country name.
-//
-// MODULE_ID = 'flags' — separate SRS progress from capitals.
-// The flag is shown large and centred as the main question stimulus.
+// Phase 8C: regionFilter read from route state, passed to generateFlagToCountryQuestions
+// (No 8B badge — the flag image IS the question, country name is the answer)
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useEffect, useRef }       from 'react'
@@ -29,9 +26,10 @@ export default function MultipleChoice({ countries }) {
   const { questionsPerRound }      = useSettings()
   const { getProgress }            = usePlayerProgress(MODULE_ID)
 
-  const frozenLang    = location.state?.lang    ?? liveLang
-  const frozenAgeMode = location.state?.ageMode ?? liveAgeMode
-  const isKidsFrozen  = frozenAgeMode === 'kids'
+  const frozenLang         = location.state?.lang         ?? liveLang
+  const frozenAgeMode      = location.state?.ageMode      ?? liveAgeMode
+  const frozenRegionFilter = location.state?.regionFilter ?? 'all'
+  const isKidsFrozen       = frozenAgeMode === 'kids'
 
   const [questions, setQuestions]             = useState([])
   const [current, setCurrent]                 = useState(0)
@@ -47,9 +45,12 @@ export default function MultipleChoice({ countries }) {
     if (countries.length > 0 && !generated.current) {
       generated.current = true
       const progress = getProgress()
-      setQuestions(generateFlagToCountryQuestions(countries, frozenLang, frozenAgeMode, questionsPerRound, progress))
+      setQuestions(generateFlagToCountryQuestions(
+        countries, frozenLang, frozenAgeMode, questionsPerRound,
+        progress, 0, frozenRegionFilter,
+      ))
     }
-  }, [countries, frozenLang, frozenAgeMode, questionsPerRound, getProgress])
+  }, [countries, frozenLang, frozenAgeMode, questionsPerRound, getProgress, frozenRegionFilter])
 
   if (questions.length === 0) {
     return (
@@ -69,7 +70,7 @@ export default function MultipleChoice({ countries }) {
     const correct = choice.isCorrect
     setScore(s  => correct ? s + 1 : s)
     setStreak(s => correct ? s + 1 : 0)
-    setAnswers(prev => [...prev, { question, chosen: choice.label, correct }])
+    setAnswers(a => [...a, { question, correct, chosen: choice.label, match: choice.label }])
   }
 
   function handleNext() {
@@ -84,6 +85,7 @@ export default function MultipleChoice({ countries }) {
           moduleId:  MODULE_ID,
           direction: DIRECTION,
           mode:      MODE,
+          mistakes:  answers.filter(a => !a.correct).map(a => a.question.country.code),
         },
       })
     } else {
@@ -92,26 +94,21 @@ export default function MultipleChoice({ countries }) {
     }
   }
 
-  function handleExitConfirmed() {
-    navigate(`/module/${MODULE_ID}`, { state: { lang: frozenLang, ageMode: frozenAgeMode } })
-  }
-
-  const progressPct = ((current + (isAnswered ? 1 : 0)) / questions.length) * 100
+  const progressPct = (current / questions.length) * 100
 
   return (
-    <div className="h-[100dvh] overflow-hidden bg-gradient-to-br from-rose-50 to-pink-50 flex flex-col">
+    <div className="h-[100dvh] flex flex-col bg-gradient-to-br from-slate-50 to-rose-50">
 
-      {/* Top bar */}
-      <div className="w-full px-4 pt-3 pb-2 flex-shrink-0">
-        <div className="flex justify-between items-center mb-2">
+      {/* ── Header bar ────────────────────────────────────────────── */}
+      <div className="flex-shrink-0 px-4 pt-4 pb-2 max-w-lg mx-auto w-full">
+        <div className="flex items-center justify-between mb-2">
           <button
             onClick={() => setShowExitConfirm(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 rounded-full text-sm font-semibold transition-colors"
+            className={`text-gray-400 hover:text-gray-600 font-semibold transition-colors ${isKidsFrozen ? 'text-base' : 'text-sm'}`}
           >
-            <span className="text-xs">✕</span>
-            {tLang('exitButtonLabel', frozenLang)}
+            ✕ {tLang('exitButtonLabel', frozenLang)}
           </button>
-          <span className={`font-bold text-rose-600 ${isKidsFrozen ? 'text-base' : 'text-sm'}`}>
+          <span className={`text-gray-500 font-semibold ${isKidsFrozen ? 'text-base' : 'text-sm'}`}>
             {tLang('quizScore', frozenLang)}: {score}
             {streak >= 2 && <span className="ml-2 text-orange-500">🔥 {streak}</span>}
           </span>
@@ -124,7 +121,7 @@ export default function MultipleChoice({ countries }) {
         </div>
       </div>
 
-      {/* Main content */}
+      {/* ── Main content ────────────────────────────────────────── */}
       <div className="flex-1 overflow-hidden flex flex-col items-center justify-center px-4 pb-3 max-w-lg mx-auto w-full">
 
         {/* Large flag — this IS the question */}
@@ -137,7 +134,6 @@ export default function MultipleChoice({ countries }) {
           />
         </div>
 
-        {/* Question prompt */}
         <div className="text-center mb-4 flex-shrink-0">
           <p className={`font-semibold text-gray-500 ${isKidsFrozen ? 'text-lg' : 'text-sm'}`}>
             {tLang('quizFlagQuestion', frozenLang)}
@@ -187,22 +183,27 @@ export default function MultipleChoice({ countries }) {
         )}
       </div>
 
-      {/* Exit dialog */}
+      {/* ── Exit confirm ──────────────────────────────────────────── */}
       {showExitConfirm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full text-center">
-            <div className="text-4xl mb-3">🚪</div>
-            <h3 className={`font-extrabold text-gray-800 mb-2 ${isKidsFrozen ? 'text-2xl' : 'text-xl'}`}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-6">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+            <p className={`font-extrabold text-gray-800 mb-2 ${isKidsFrozen ? 'text-xl' : 'text-lg'}`}>
               {tLang('exitTitle', frozenLang)}
-            </h3>
-            <p className={`text-gray-500 mb-6 ${isKidsFrozen ? 'text-lg' : 'text-sm'}`}>
+            </p>
+            <p className={`text-gray-500 mb-6 ${isKidsFrozen ? 'text-base' : 'text-sm'}`}>
               {tLang('exitMessage', frozenLang)}
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setShowExitConfirm(false)} className={`flex-1 rounded-xl font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all ${isKidsFrozen ? 'py-4 text-lg' : 'py-3 text-base'}`}>
+              <button
+                onClick={() => setShowExitConfirm(false)}
+                className={`flex-1 rounded-2xl border-2 border-gray-200 font-bold text-gray-600 hover:border-gray-300 transition-all ${isKidsFrozen ? 'py-4 text-base' : 'py-3 text-sm'}`}
+              >
                 {tLang('exitCancel', frozenLang)}
               </button>
-              <button onClick={handleExitConfirmed} className={`flex-1 rounded-xl font-bold text-white bg-red-400 hover:bg-red-500 transition-all ${isKidsFrozen ? 'py-4 text-lg' : 'py-3 text-base'}`}>
+              <button
+                onClick={() => navigate('/module/' + MODULE_ID)}
+                className={`flex-1 rounded-2xl bg-red-500 font-bold text-white hover:bg-red-600 transition-all ${isKidsFrozen ? 'py-4 text-base' : 'py-3 text-sm'}`}
+              >
                 {tLang('exitConfirm', frozenLang)}
               </button>
             </div>

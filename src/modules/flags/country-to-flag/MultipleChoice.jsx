@@ -1,11 +1,7 @@
 // src/modules/flags/country-to-flag/MultipleChoice.jsx
 // ─────────────────────────────────────────────────────────────────────────────
-// Flags › Country → Flag › Multiple Choice
-// Given a country name → pick the correct flag from a grid of flag images.
-//
-// This is the only quiz mode where choices are visual (flag images) not text.
-// Choices render as flag image buttons in a 2-column grid.
-// choice.label = flag SVG URL; choice.countryName = display name for results.
+// Phase 8B: TerritoryBadge added below country name in question stimulus
+// Phase 8C: regionFilter read from route state, passed to generateCountryToFlagQuestions
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useEffect, useRef }       from 'react'
@@ -16,6 +12,7 @@ import { useSettings }                       from '../../../context/SettingsCont
 import { usePlayerProgress }                 from '../../../hooks/usePlayerProgress'
 import { generateCountryToFlagQuestions }    from '../../../utils/questionGenerator'
 import FlagImage                             from '../../../components/FlagImage'
+import TerritoryBadge                        from '../../../components/TerritoryBadge'
 
 const MODULE_ID = 'flags'
 const MODE      = 'multiple-choice'
@@ -30,13 +27,14 @@ export default function MultipleChoice({ countries }) {
   const { questionsPerRound }      = useSettings()
   const { getProgress }            = usePlayerProgress(MODULE_ID)
 
-  const frozenLang    = location.state?.lang    ?? liveLang
-  const frozenAgeMode = location.state?.ageMode ?? liveAgeMode
-  const isKidsFrozen  = frozenAgeMode === 'kids'
+  const frozenLang         = location.state?.lang         ?? liveLang
+  const frozenAgeMode      = location.state?.ageMode      ?? liveAgeMode
+  const frozenRegionFilter = location.state?.regionFilter ?? 'all'
+  const isKidsFrozen       = frozenAgeMode === 'kids'
 
   const [questions, setQuestions]             = useState([])
   const [current, setCurrent]                 = useState(0)
-  const [selected, setSelected]               = useState(null) // stores flag URL of selected choice
+  const [selected, setSelected]               = useState(null)
   const [score, setScore]                     = useState(0)
   const [streak, setStreak]                   = useState(0)
   const [answers, setAnswers]                 = useState([])
@@ -48,9 +46,12 @@ export default function MultipleChoice({ countries }) {
     if (countries.length > 0 && !generated.current) {
       generated.current = true
       const progress = getProgress()
-      setQuestions(generateCountryToFlagQuestions(countries, frozenLang, frozenAgeMode, questionsPerRound, progress))
+      setQuestions(generateCountryToFlagQuestions(
+        countries, frozenLang, frozenAgeMode, questionsPerRound,
+        progress, 0, frozenRegionFilter,
+      ))
     }
-  }, [countries, frozenLang, frozenAgeMode, questionsPerRound, getProgress])
+  }, [countries, frozenLang, frozenAgeMode, questionsPerRound, getProgress, frozenRegionFilter])
 
   if (questions.length === 0) {
     return (
@@ -66,11 +67,11 @@ export default function MultipleChoice({ countries }) {
 
   function handleAnswer(choice) {
     if (isAnswered) return
-    setSelected(choice.label) // flag URL
+    setSelected(choice.label)
     const correct = choice.isCorrect
     setScore(s  => correct ? s + 1 : s)
     setStreak(s => correct ? s + 1 : 0)
-    setAnswers(prev => [...prev, { question, chosen: choice.label, correct }])
+    setAnswers(a => [...a, { question, correct, chosen: choice.label, match: choice.label }])
   }
 
   function handleNext() {
@@ -85,6 +86,7 @@ export default function MultipleChoice({ countries }) {
           moduleId:  MODULE_ID,
           direction: DIRECTION,
           mode:      MODE,
+          mistakes:  answers.filter(a => !a.correct).map(a => a.question.country.code),
         },
       })
     } else {
@@ -93,27 +95,21 @@ export default function MultipleChoice({ countries }) {
     }
   }
 
-  function handleExitConfirmed() {
-    navigate(`/module/${MODULE_ID}`, { state: { lang: frozenLang, ageMode: frozenAgeMode } })
-  }
-
-  const progressPct = ((current + (isAnswered ? 1 : 0)) / questions.length) * 100
-  const correctFlag = question.choices.find(c => c.isCorrect)
+  const progressPct = (current / questions.length) * 100
 
   return (
-    <div className="h-[100dvh] overflow-hidden bg-gradient-to-br from-pink-50 to-rose-50 flex flex-col">
+    <div className="h-[100dvh] flex flex-col bg-gradient-to-br from-slate-50 to-pink-50">
 
-      {/* Top bar */}
-      <div className="w-full px-4 pt-3 pb-2 flex-shrink-0">
-        <div className="flex justify-between items-center mb-2">
+      {/* ── Header bar ────────────────────────────────────────────── */}
+      <div className="flex-shrink-0 px-4 pt-4 pb-2 max-w-lg mx-auto w-full">
+        <div className="flex items-center justify-between mb-2">
           <button
             onClick={() => setShowExitConfirm(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 rounded-full text-sm font-semibold transition-colors"
+            className={`text-gray-400 hover:text-gray-600 font-semibold transition-colors ${isKidsFrozen ? 'text-base' : 'text-sm'}`}
           >
-            <span className="text-xs">✕</span>
-            {tLang('exitButtonLabel', frozenLang)}
+            ✕ {tLang('exitButtonLabel', frozenLang)}
           </button>
-          <span className={`font-bold text-pink-600 ${isKidsFrozen ? 'text-base' : 'text-sm'}`}>
+          <span className={`text-gray-500 font-semibold ${isKidsFrozen ? 'text-base' : 'text-sm'}`}>
             {tLang('quizScore', frozenLang)}: {score}
             {streak >= 2 && <span className="ml-2 text-orange-500">🔥 {streak}</span>}
           </span>
@@ -126,29 +122,31 @@ export default function MultipleChoice({ countries }) {
         </div>
       </div>
 
-      {/* Main content */}
+      {/* ── Main content ────────────────────────────────────────── */}
       <div className="flex-1 overflow-hidden flex flex-col items-center justify-center px-4 pb-3 max-w-lg mx-auto w-full">
 
-        {/* Question — country name */}
+        {/* Country name + territory badge */}
         <div className="text-center mb-5 flex-shrink-0">
-          <p className={`text-gray-500 mb-1 ${isKidsFrozen ? 'text-base' : 'text-xs'}`}>
-            {tLang('quizCountryToFlagQuestion', frozenLang)}
+          <p className={`text-gray-400 mb-1 ${isKidsFrozen ? 'text-base' : 'text-xs'}`}>
+            {tLang('quizCountryToFlag', frozenLang) ?? 'Which flag belongs to'}
           </p>
           <h2 className={`font-extrabold text-gray-800 leading-tight ${isKidsFrozen ? 'text-3xl' : 'text-2xl'}`}>
-            {question.country.name[frozenLang]}
+            {question.country.name[frozenLang] ?? question.country.name.en}
           </h2>
+          {/* 8B: territory badge */}
+          <TerritoryBadge sovereign={question.country.sovereign} lang={frozenLang} isKids={isKidsFrozen} />
         </div>
 
-        {/* Flag grid — 2 columns of flag image buttons */}
-        <div className="w-full grid grid-cols-2 gap-3 flex-shrink-0">
+        {/* Flag choices — 2-column grid */}
+        <div className={`w-full grid grid-cols-2 gap-3 flex-shrink-0`}>
           {question.choices.map((choice, i) => {
             const isSelected  = selected === choice.label
             const showCorrect = isAnswered && choice.isCorrect
             const showWrong   = isAnswered && isSelected && !choice.isCorrect
 
-            let borderClass = 'border-gray-200 hover:border-pink-300 hover:shadow-md'
-            if (showCorrect) borderClass = 'border-green-500 ring-2 ring-green-400 shadow-lg'
-            if (showWrong)   borderClass = 'border-red-400 ring-2 ring-red-300 shadow-lg'
+            let borderClass = 'border-2 border-gray-200 hover:border-pink-300 hover:shadow-md'
+            if (showCorrect) borderClass = 'border-4 border-green-500 shadow-green-200 shadow-lg'
+            if (showWrong)   borderClass = 'border-4 border-red-400 shadow-red-200 shadow-lg'
 
             return (
               <button
@@ -156,30 +154,25 @@ export default function MultipleChoice({ countries }) {
                 onClick={() => handleAnswer(choice)}
                 disabled={isAnswered}
                 className={`
-                  relative rounded-2xl overflow-hidden border-4 transition-all duration-200
+                  relative rounded-2xl overflow-hidden transition-all duration-200
+                  ${isKidsFrozen ? 'h-24' : 'h-20'}
                   ${borderClass}
                   ${isAnswered ? 'cursor-default' : 'cursor-pointer active:scale-95'}
-                  ${showCorrect ? 'scale-[1.03]' : ''}
                 `}
               >
-                <FlagImage
+                <img
                   src={choice.label}
                   alt={choice.countryName}
-                  className={`w-full ${isKidsFrozen ? 'h-24' : 'h-20'} object-cover`}
-                  isKids={isKidsFrozen}
+                  className="w-full h-full object-cover"
                 />
-                {/* Result overlay */}
-                {isAnswered && (showCorrect || showWrong) && (
-                  <div className={`absolute inset-0 flex items-center justify-center ${showCorrect ? 'bg-green-500/20' : 'bg-red-400/20'}`}>
-                    <span className="text-3xl drop-shadow">
-                      {showCorrect ? '✓' : '✗'}
-                    </span>
+                {showCorrect && (
+                  <div className="absolute top-1 right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">✓</span>
                   </div>
                 )}
-                {/* Country name shown after answer */}
-                {isAnswered && (
-                  <div className={`absolute bottom-0 left-0 right-0 bg-black/60 text-white text-center font-semibold px-1 ${isKidsFrozen ? 'py-1.5 text-xs' : 'py-1 text-xs'}`}>
-                    {choice.countryName}
+                {showWrong && (
+                  <div className="absolute top-1 right-1 w-6 h-6 bg-red-400 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">✗</span>
                   </div>
                 )}
               </button>
@@ -193,7 +186,7 @@ export default function MultipleChoice({ countries }) {
             <p className={`flex-1 font-bold ${isKidsFrozen ? 'text-base' : 'text-sm'}`}>
               {answers[answers.length - 1]?.correct
                 ? <span className="text-green-600">{tLang('quizCorrect', frozenLang)}</span>
-                : <span className="text-red-500">{tLang('quizCorrectAnswer', frozenLang)}: <strong>{question.correctAnswer}</strong></span>
+                : <span className="text-red-500">{tLang('quizWrong', frozenLang)}</span>
               }
             </p>
             <button
@@ -206,22 +199,27 @@ export default function MultipleChoice({ countries }) {
         )}
       </div>
 
-      {/* Exit dialog */}
+      {/* ── Exit confirm ──────────────────────────────────────────── */}
       {showExitConfirm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full text-center">
-            <div className="text-4xl mb-3">🚪</div>
-            <h3 className={`font-extrabold text-gray-800 mb-2 ${isKidsFrozen ? 'text-2xl' : 'text-xl'}`}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-6">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+            <p className={`font-extrabold text-gray-800 mb-2 ${isKidsFrozen ? 'text-xl' : 'text-lg'}`}>
               {tLang('exitTitle', frozenLang)}
-            </h3>
-            <p className={`text-gray-500 mb-6 ${isKidsFrozen ? 'text-lg' : 'text-sm'}`}>
+            </p>
+            <p className={`text-gray-500 mb-6 ${isKidsFrozen ? 'text-base' : 'text-sm'}`}>
               {tLang('exitMessage', frozenLang)}
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setShowExitConfirm(false)} className={`flex-1 rounded-xl font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all ${isKidsFrozen ? 'py-4 text-lg' : 'py-3 text-base'}`}>
+              <button
+                onClick={() => setShowExitConfirm(false)}
+                className={`flex-1 rounded-2xl border-2 border-gray-200 font-bold text-gray-600 hover:border-gray-300 transition-all ${isKidsFrozen ? 'py-4 text-base' : 'py-3 text-sm'}`}
+              >
                 {tLang('exitCancel', frozenLang)}
               </button>
-              <button onClick={handleExitConfirmed} className={`flex-1 rounded-xl font-bold text-white bg-red-400 hover:bg-red-500 transition-all ${isKidsFrozen ? 'py-4 text-lg' : 'py-3 text-base'}`}>
+              <button
+                onClick={() => navigate('/module/' + MODULE_ID)}
+                className={`flex-1 rounded-2xl bg-red-500 font-bold text-white hover:bg-red-600 transition-all ${isKidsFrozen ? 'py-4 text-base' : 'py-3 text-sm'}`}
+              >
                 {tLang('exitConfirm', frozenLang)}
               </button>
             </div>

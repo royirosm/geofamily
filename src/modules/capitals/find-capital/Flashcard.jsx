@@ -1,9 +1,14 @@
 // src/modules/capitals/find-capital/Flashcard.jsx
-// Front: country flag + name  →  Back: capital city name
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 8B: TerritoryBadge added below country name on the front face
+// Phase 8C: regionFilter forwarded via FlashcardBase → generateFn
+// ─────────────────────────────────────────────────────────────────────────────
+// Front: country flag + name (+ territory badge)  →  Back: capital city name
 
 import FlashcardBase         from '../../_shared/FlashcardBase'
 import { generateQuestions } from '../../../utils/questionGenerator'
 import FlagImage             from '../../../components/FlagImage'
+import TerritoryBadge        from '../../../components/TerritoryBadge'
 
 const CONFIG = {
   moduleId:    'capitals',
@@ -14,7 +19,7 @@ const CONFIG = {
   getFront(question, lang) {
     const country = question.country
     return (
-      <div className="flex flex-col items-center gap-4 w-full">
+      <div className="flex flex-col items-center gap-3 w-full">
         <div className="rounded-2xl overflow-hidden shadow-lg border-4 border-gray-100">
           <FlagImage
             src={country.flag}
@@ -25,6 +30,8 @@ const CONFIG = {
         <h2 className="font-extrabold text-gray-800 text-2xl text-center leading-tight">
           {country.name[lang] ?? country.name.en}
         </h2>
+        {/* 8B: territory badge */}
+        <TerritoryBadge sovereign={country.sovereign} lang={lang} />
       </div>
     )
   },

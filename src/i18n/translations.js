@@ -188,6 +188,7 @@ const translations = {
   moduleSelectSubtitle:   { en: 'How do you want to play?',       el: 'Πώς θέλεις να παίξεις;' },
   moduleSelectStep1:      { en: 'Choose a direction',             el: 'Διάλεξε κατεύθυνση' },
   moduleSelectStep2:      { en: 'Choose a game type',             el: 'Διάλεξε είδος παιχνιδιού' },
+  moduleSelectStep3:      { en: 'Choose a region',   el: 'Διάλεξε περιοχή' },
   moduleSelectComingSoon: { en: 'More game types coming!', el: 'Σύντομα περισσότερα παιχνίδια!' },
 
   // ── Direction labels — Capitals ────────────────────────────────────────────
