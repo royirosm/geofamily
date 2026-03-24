@@ -1,5 +1,5 @@
 // src/config/modules.js
-// Phase 6 complete: type-answer + flashcard unlocked for all applicable directions
+// Phase 7: sovereignty module added (country-or-territory + find-sovereign)
 
 export const MODULES = [
 
@@ -69,12 +69,42 @@ export const MODULES = [
     ],
   },
 
+  // ── SOVEREIGNTY ────────────────────────────────────────────────────────────
+  {
+    id:        'sovereignty',
+    labelKey:  'modulesSovereignty',
+    emoji:     '🌐',
+    gradient:  'from-amber-400 to-orange-500',
+    available: true,
+    directions: [
+      {
+        id:       'country-or-territory',
+        labelKey: 'dirCountryOrTerritory',
+        emoji:    '🗺️',
+        descKey:  'dirCountryOrTerritoryDesc',
+        modes: [
+          // Uses SovereigntyBinary component — registered as 'multiple-choice' route
+          { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
+        ],
+      },
+      {
+        id:       'find-sovereign',
+        labelKey: 'dirFindSovereign',
+        emoji:    '🏛️',
+        descKey:  'dirFindSovereignDesc',
+        modes: [
+          { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
+        ],
+      },
+    ],
+  },
+
   // ── COMING SOON ────────────────────────────────────────────────────────────
   {
     id:        'cities',
     labelKey:  'modulesCities',
     emoji:     '🏙️',
-    gradient:  'from-amber-400 to-orange-500',
+    gradient:  'from-violet-400 to-purple-600',
     available: false,
     directions: [],
   },

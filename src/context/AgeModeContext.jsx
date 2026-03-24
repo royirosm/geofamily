@@ -1,31 +1,45 @@
-// AgeModeContext.jsx
-// Provides the active age mode ('kids' | 'explorer') to any component.
+// src/context/AgeModeContext.jsx
+// ─────────────────────────────────────────────────────────────────────────────
+// Provides the active age mode to any component.
 //
-// Kids mode:    3 answer choices, no timer, common countries, large UI, celebratory feedback
-// Explorer mode: 4 answer choices, timer on, all 195 countries, normal UI, concise feedback
+// THREE modes (upgraded from 2):
+//   'kids'     — 3 choices, large UI, celebratory feedback, tiered country pool
+//                (starts at 40, unlocks 5 more per 5 countries mastered globally)
+//   'familiar' — 4 choices, normal UI, curated ~100-country pool (well-known states)
+//   'expert'   — 4 choices, normal UI, all ~235 countries
+//
+// Backwards compatibility: old localStorage value 'explorer' maps to 'expert'
+// so existing users are not reset.
 //
 // Usage:
-//   const { ageMode, setAgeMode, isKids } = useAgeMode()
+//   const { ageMode, setAgeMode, isKids, isFamiliar, isExpert } = useAgeMode()
+// ─────────────────────────────────────────────────────────────────────────────
 
 import { createContext, useContext, useState } from 'react'
 
 const AgeModeContext = createContext(null)
 
-export function AgeModeProvider({ children }) {
-  const [ageMode, setAgeMode] = useState(
-    () => localStorage.getItem('geofamily_agemode') || 'kids'
-  )
+function loadAgeMode() {
+  const stored = localStorage.getItem('geofamily_agemode') || 'kids'
+  // Migrate legacy 'explorer' value to 'expert'
+  return stored === 'explorer' ? 'expert' : stored
+}
 
-  function switchAgeMode(newMode) {
-    setAgeMode(newMode)
+export function AgeModeProvider({ children }) {
+  const [ageMode, setAgeModeState] = useState(loadAgeMode)
+
+  function setAgeMode(newMode) {
+    setAgeModeState(newMode)
     localStorage.setItem('geofamily_agemode', newMode)
   }
 
   return (
     <AgeModeContext.Provider value={{
       ageMode,
-      setAgeMode: switchAgeMode,
-      isKids: ageMode === 'kids',
+      setAgeMode,
+      isKids:     ageMode === 'kids',
+      isFamiliar: ageMode === 'familiar',
+      isExpert:   ageMode === 'expert',
     }}>
       {children}
     </AgeModeContext.Provider>

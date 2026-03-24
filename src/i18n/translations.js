@@ -14,12 +14,27 @@ const translations = {
 
   // --- Age Mode ---
   kidsMode:     { en: 'Kids',     el: 'Παιδιά' },
-  explorerMode: { en: 'Explorer', el: 'Εξερευνητής' },
+  familiarMode:     { en: 'Familiar',   el: 'Γνώριμες'      },
+  expertMode:       { en: 'Expert',     el: 'Ειδικός'        },
+  familiarModeDesc: { en: '~100 well-known countries',  el: '~100 γνωστές χώρες'     },
+  expertModeDesc:   { en: 'All ~235 countries & territories', el: 'Όλες οι ~235 χώρες' },
+
+  // ── Kids unlock system ─────────────────────────────────────────────────────
+  kidsNewCountries:  { en: 'new countries unlocked!',   el: 'νέες χώρες ξεκλειδώθηκαν!' },
+  kidsUnlockedTitle: { en: '🎉 New countries unlocked!', el: '🎉 Νέες χώρες ξεκλειδώθηκαν!' },
+  kidsUnlockedDesc:  { en: 'new countries added to your pool. Keep exploring!',
+                       el: 'νέες χώρες προστέθηκαν. Συνέχισε την εξερεύνηση!'              },
+
+  // ── General UI (if not already present) ───────────────────────────────────
+  comingSoon: { en: 'Coming soon', el: 'Έρχεται σύντομα' },
+  leaderboard: { en: 'Leaderboard', el: 'Κατάταξη' },
 
   // --- Settings ---
   settings:                  { en: 'Settings',           el: 'Ρυθμίσεις' },
   settingsQuestionsPerRound: { en: 'Questions per round', el: 'Ερωτήσεις ανά γύρο' },
   settingsDone:              { en: 'Done',               el: 'Εντάξει' },
+  settingsPlayer:       { en: 'Player',           el: 'Παίκτης'             },
+  settingsPlayerSwitch: { en: 'Tap to switch player', el: 'Πάτα για αλλαγή παίκτη' },
 
   // --- Home screen ---
   homeTitle:    { en: 'Learn Geography',          el: 'Μάθε Γεωγραφία' },
@@ -223,6 +238,24 @@ const translations = {
   flashcardMarkedGot:    { en: 'Marked as learned',      el: 'Σημειώθηκε ως γνωστό'         },
   flashcardMarkedNotYet: { en: 'Keep practising',        el: 'Συνέχισε την εξάσκηση'         },
   flashcardProgress:     { en: 'Card',                   el: 'Κάρτα'                         },
+
+  // ── Module names ───────────────────────────────────────────────────────────
+  modulesSovereignty: { en: 'Sovereignty',    el: 'Κυριαρχία'       },
+
+  // ── Sovereignty directions ─────────────────────────────────────────────────
+  dirCountryOrTerritory:     { en: 'Country or Territory?', el: 'Χώρα ή Έδαφος;'      },
+  dirCountryOrTerritoryDesc: { en: 'Is this place an independent country or a territory?',
+                               el: 'Αυτό το μέρος είναι ανεξάρτητη χώρα ή έδαφος;'    },
+  dirFindSovereign:          { en: 'Find the Governing Country', el: 'Βρες τη Μητρόπολη' },
+  dirFindSovereignDesc:      { en: 'Which country governs this territory?',
+                               el: 'Ποια χώρα διοικεί αυτό το έδαφος;'                 },
+
+  // ── Sovereignty game UI ────────────────────────────────────────────────────
+  sovCountry:            { en: 'Country',              el: 'Χώρα'                          },
+  sovTerritory:          { en: 'Territory',             el: 'Έδαφος'                        },
+  sovCorrectAnswer:      { en: 'Correct answer',        el: 'Σωστή απάντηση'                },
+  sovFindSovereignPrompt:{ en: 'Which country governs this territory?',
+                           el: 'Ποια χώρα διοικεί αυτό το έδαφος;'                         },
 }
 
 export default translations

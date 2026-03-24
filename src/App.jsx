@@ -34,6 +34,12 @@ import FlagsFlagToCountryFC   from './modules/flags/flag-to-country/Flashcard'
 import FlagsCountryToFlagMC   from './modules/flags/country-to-flag/MultipleChoice'
 import FlagsCountryToFlagFC   from './modules/flags/country-to-flag/Flashcard'
 
+// ── Sovereignty / country-or-territory ───────────────────────────────────────
+import SovereigntyBinary         from './modules/sovereignty/country-or-territory/SovereigntyBinary'
+
+// ── Sovereignty / find-sovereign ─────────────────────────────────────────────
+import SovereigntyFindSovereignMC from './modules/sovereignty/find-sovereign/MultipleChoice'
+
 function AppContent() {
   const { countries, loading, error } = useCountries()
   const { t }            = useLanguage()
@@ -96,6 +102,14 @@ function AppContent() {
         {/* ── Flags / country-to-flag ── */}
         <Route path="/quiz/flags/country-to-flag/multiple-choice" element={<FlagsCountryToFlagMC countries={countries} />} />
         <Route path="/quiz/flags/country-to-flag/flashcard"       element={<FlagsCountryToFlagFC countries={countries} />} />
+
+        {/* ── Sovereignty / country-or-territory ── */}
+        <Route path="/quiz/sovereignty/country-or-territory/multiple-choice"
+               element={<SovereigntyBinary countries={countries} />} />
+
+        {/* ── Sovereignty / find-sovereign ── */}
+        <Route path="/quiz/sovereignty/find-sovereign/multiple-choice"
+               element={<SovereigntyFindSovereignMC countries={countries} />} />
 
         {/* ── Legacy route (backwards compat) ── */}
         <Route path="/quiz/capitals" element={<CapitalsFindCapitalMC countries={countries} />} />

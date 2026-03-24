@@ -48,10 +48,12 @@ export const MODE_LABELS = {
 // ── Direction labels — all direction IDs across all modules ──────────────────
 
 export const DIRECTION_LABELS = {
-  'find-capital':    { en: 'Find the Capital',  el: 'Βρες την Πρωτεύουσα', emoji: '🗺️' },
-  'find-country':    { en: 'Find the Country',  el: 'Βρες τη Χώρα',        emoji: '❓' },
-  'flag-to-country': { en: 'Flag → Country',    el: 'Σημαία → Χώρα',       emoji: '🏳️' },
-  'country-to-flag': { en: 'Country → Flag',    el: 'Χώρα → Σημαία',       emoji: '🌍' },
+  'find-capital':         { en: 'Find the Capital',         el: 'Βρες την Πρωτεύουσα',  emoji: '🗺️' },
+  'find-country':         { en: 'Find the Country',         el: 'Βρες τη Χώρα',          emoji: '❓' },
+  'flag-to-country':      { en: 'Flag → Country',           el: 'Σημαία → Χώρα',         emoji: '🏳️' },
+  'country-to-flag':      { en: 'Country → Flag',           el: 'Χώρα → Σημαία',         emoji: '🌍' },
+  'country-or-territory': { en: 'Country or Territory?',    el: 'Χώρα ή Έδαφος;',        emoji: '🌐' },
+  'find-sovereign':       { en: 'Find the Governing Country', el: 'Βρες τη Μητρόπολη',   emoji: '🏛️' },
 }
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
@@ -266,6 +268,32 @@ export function getLevelForPlayer(playerId) {
     return               { level: 1, title: { en: 'New',         el: 'Νέος'         } }
   } catch {
     return { level: 1, title: { en: 'New', el: 'Νέος' } }
+  }
+}
+
+/**
+ * getGlobalMasterCount(playerId)
+ *
+ * Counts distinct country codes that have reached `strength: 'master'`
+ * in ANY module. France mastered in both capitals + flags still counts as 1.
+ *
+ * Returns a number (0 if no data).
+ * Pure function — safe to call anywhere, no hooks needed.
+ */
+export function getGlobalMasterCount(playerId) {
+  try {
+    const prefix  = `geofamily_progress_${playerId}_`
+    const mastered = new Set()
+    for (const key of Object.keys(localStorage)) {
+      if (!key.startsWith(prefix)) continue
+      const map = JSON.parse(localStorage.getItem(key) ?? '{}')
+      for (const [code, rec] of Object.entries(map)) {
+        if (rec?.strength === 'master') mastered.add(code)
+      }
+    }
+    return mastered.size
+  } catch {
+    return 0
   }
 }
 
