@@ -20,6 +20,8 @@ import SettingsModal            from '../components/SettingsModal'
 
 function seenPoolKey(playerId) { return `geofamily_kids_seen_pool_${playerId}` }
 
+
+
 export default function HomeScreen() {
   const navigate                        = useNavigate()
   const { lang, setLang, t }            = useLanguage()
@@ -137,26 +139,27 @@ export default function HomeScreen() {
         <p className="text-center font-semibold text-gray-400 uppercase tracking-widest text-xs mb-4">
           {t('chooseModule')}
         </p>
-        <div className="grid grid-cols-2 gap-3 auto-rows-fr">
+        <div className="grid grid-cols-3 gap-3 auto-rows-fr">
           {MODULES.map(mod => (
             <button
               key={mod.id}
               onClick={() => handleModuleClick(mod)}
               disabled={!mod.available}
               className={`
-                relative rounded-3xl p-5 text-left transition-all duration-200 h-full
+                relative rounded-2xl p-3 text-center transition-all duration-200 h-full
+                flex flex-col items-center justify-center gap-1.5
                 ${mod.available
-                  ? `bg-gradient-to-br ${mod.gradient} text-white shadow-lg hover:shadow-xl active:scale-95 hover:scale-[1.02]`
+                  ? `bg-gradient-to-br ${mod.gradient} text-white shadow-md hover:shadow-lg active:scale-95 hover:scale-[1.02]`
                   : 'bg-white border-2 border-dashed border-gray-200 text-gray-300 cursor-not-allowed'
                 }
               `}
             >
-              <div className="mb-2 text-3xl">{mod.emoji}</div>
-              <p className={`font-extrabold leading-tight ${isKids ? 'text-base' : 'text-sm'}`}>
+              <div className="text-2xl leading-none">{mod.emoji}</div>
+              <p className={`font-bold leading-tight tracking-tight ${isKids ? 'text-sm' : 'text-xs'}`}>
                 {t(mod.labelKey)}
               </p>
               {!mod.available && (
-                <p className="text-xs mt-1 text-gray-400">🔒 {t('comingSoon')}</p>
+                <p className="text-xs text-gray-400">🔒</p>
               )}
             </button>
           ))}

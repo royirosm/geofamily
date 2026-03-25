@@ -102,7 +102,7 @@ export const STRENGTH_WEIGHTS = {
 
 // ── Utility ───────────────────────────────────────────────────────────────────
 
-function shuffle(arr) {
+export function shuffle(arr) {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -111,7 +111,7 @@ function shuffle(arr) {
   return a
 }
 
-function weightedSample(pool, count) {
+export function weightedSample(pool, count) {
   const result = []
   const used   = new Set()
   const total  = () => pool.reduce((s, e) => s + (used.has(e.item.code) ? 0 : e.weight), 0)
@@ -150,7 +150,7 @@ function buildKidsEligibleCodes(countries, poolSize) {
 // When set and not 'all', eligible countries are filtered to that region
 // AFTER age-mode filtering, so region narrows within the age pool.
 
-function buildPool(
+export function buildPool(
   countries,
   lang,
   ageMode,

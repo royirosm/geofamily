@@ -41,6 +41,56 @@ import SovereigntyBinary          from './modules/sovereignty/country-or-territo
 // ── Sovereignty / find-sovereign ─────────────────────────────────────────────
 import SovereigntyFindSovereignMC from './modules/sovereignty/find-sovereign/MultipleChoice'
 
+// ── Currencies / find-currency ────────────────────────────────────────────
+import CurrenciesFindCurrencyMC  from './modules/currencies/find-currency/MultipleChoice'
+import CurrenciesFindCurrencyTA  from './modules/currencies/find-currency/TypeAnswer'
+import CurrenciesFindCurrencyFC  from './modules/currencies/find-currency/Flashcard'
+
+// ── Currencies / find-country ─────────────────────────────────────────────
+import CurrenciesFindCountryMC   from './modules/currencies/find-country/MultipleChoice'
+import CurrenciesFindCountryTA   from './modules/currencies/find-country/TypeAnswer'
+import CurrenciesFindCountryFC   from './modules/currencies/find-country/Flashcard'
+
+// ── Codes / find-code ─────────────────────────────────────────────────────
+import CodesFindCodeMC           from './modules/codes/find-code/MultipleChoice'
+import CodesFindCodeTA           from './modules/codes/find-code/TypeAnswer'
+import CodesFindCodeFC           from './modules/codes/find-code/Flashcard'
+
+// ── Codes / find-country ──────────────────────────────────────────────────
+import CodesFindCountryMC        from './modules/codes/find-country/MultipleChoice'
+import CodesFindCountryTA        from './modules/codes/find-country/TypeAnswer'
+import CodesFindCountryFC        from './modules/codes/find-country/Flashcard'
+
+// ── Regions / find-region ─────────────────────────────────────────────────
+import RegionsFindRegionMC       from './modules/regions/find-region/MultipleChoice'
+import RegionsFindRegionTA       from './modules/regions/find-region/TypeAnswer'
+import RegionsFindRegionFC       from './modules/regions/find-region/Flashcard'
+
+// ── Regions / find-country ────────────────────────────────────────────────
+import RegionsFindCountryMC      from './modules/regions/find-country/MultipleChoice'
+import RegionsFindCountryTA      from './modules/regions/find-country/TypeAnswer'
+import RegionsFindCountryFC      from './modules/regions/find-country/Flashcard'
+
+// ── Languages / find-language ─────────────────────────────────────────────
+import LanguagesFindLanguageMC   from './modules/languages/find-language/MultipleChoice'
+import LanguagesFindLanguageTA   from './modules/languages/find-language/TypeAnswer'
+import LanguagesFindLanguageFC   from './modules/languages/find-language/Flashcard'
+
+// ── Languages / find-country ──────────────────────────────────────────────
+import LanguagesFindCountryMC    from './modules/languages/find-country/MultipleChoice'
+import LanguagesFindCountryTA    from './modules/languages/find-country/TypeAnswer'
+import LanguagesFindCountryFC    from './modules/languages/find-country/Flashcard'
+
+// ── Cities / find-city ────────────────────────────────────────────────────
+import CitiesFindCityMC          from './modules/cities/find-city/MultipleChoice'
+import CitiesFindCityTA          from './modules/cities/find-city/TypeAnswer'
+import CitiesFindCityFC          from './modules/cities/find-city/Flashcard'
+
+// ── Cities / find-country ─────────────────────────────────────────────────
+import CitiesFindCountryMC       from './modules/cities/find-country/MultipleChoice'
+import CitiesFindCountryTA       from './modules/cities/find-country/TypeAnswer'
+import CitiesFindCountryFC       from './modules/cities/find-country/Flashcard'
+
 function AppContent() {
   const { countries, loading, error } = useCountries()
   const { t }              = useLanguage()
@@ -120,6 +170,56 @@ function AppContent() {
 
         {/* ── Legacy route (backwards compat) ── */}
         <Route path="/quiz/capitals" element={<CapitalsFindCapitalMC countries={countries} />} />
+
+        {/* ── Currencies / find-currency ── */}
+        <Route path="/quiz/currencies/find-currency/multiple-choice" element={<CurrenciesFindCurrencyMC countries={countries} />} />
+        <Route path="/quiz/currencies/find-currency/type-answer"     element={<CurrenciesFindCurrencyTA countries={countries} />} />
+        <Route path="/quiz/currencies/find-currency/flashcard"       element={<CurrenciesFindCurrencyFC countries={countries} />} />
+
+        {/* ── Currencies / find-country ── */}
+        <Route path="/quiz/currencies/find-country/multiple-choice"  element={<CurrenciesFindCountryMC  countries={countries} />} />
+        <Route path="/quiz/currencies/find-country/type-answer"      element={<CurrenciesFindCountryTA  countries={countries} />} />
+        <Route path="/quiz/currencies/find-country/flashcard"        element={<CurrenciesFindCountryFC  countries={countries} />} />
+
+        {/* ── Codes / find-code ── */}
+        <Route path="/quiz/codes/find-code/multiple-choice"          element={<CodesFindCodeMC          countries={countries} />} />
+        <Route path="/quiz/codes/find-code/type-answer"              element={<CodesFindCodeTA          countries={countries} />} />
+        <Route path="/quiz/codes/find-code/flashcard"                element={<CodesFindCodeFC          countries={countries} />} />
+
+        {/* ── Codes / find-country ── */}
+        <Route path="/quiz/codes/find-country/multiple-choice"       element={<CodesFindCountryMC       countries={countries} />} />
+        <Route path="/quiz/codes/find-country/type-answer"           element={<CodesFindCountryTA       countries={countries} />} />
+        <Route path="/quiz/codes/find-country/flashcard"             element={<CodesFindCountryFC       countries={countries} />} />
+
+        {/* ── Regions / find-region ── */}
+        <Route path="/quiz/regions/find-region/multiple-choice"      element={<RegionsFindRegionMC      countries={countries} />} />
+        <Route path="/quiz/regions/find-region/type-answer"          element={<RegionsFindRegionTA      countries={countries} />} />
+        <Route path="/quiz/regions/find-region/flashcard"            element={<RegionsFindRegionFC      countries={countries} />} />
+
+        {/* ── Regions / find-country ── */}
+        <Route path="/quiz/regions/find-country/multiple-choice"     element={<RegionsFindCountryMC     countries={countries} />} />
+        <Route path="/quiz/regions/find-country/type-answer"         element={<RegionsFindCountryTA     countries={countries} />} />
+        <Route path="/quiz/regions/find-country/flashcard"           element={<RegionsFindCountryFC     countries={countries} />} />
+
+        {/* ── Languages / find-language ── */}
+        <Route path="/quiz/languages/find-language/multiple-choice" element={<LanguagesFindLanguageMC countries={countries} />} />
+        <Route path="/quiz/languages/find-language/type-answer"     element={<LanguagesFindLanguageTA countries={countries} />} />
+        <Route path="/quiz/languages/find-language/flashcard"       element={<LanguagesFindLanguageFC countries={countries} />} />
+
+        {/* ── Languages / find-country ── */}
+        <Route path="/quiz/languages/find-country/multiple-choice"  element={<LanguagesFindCountryMC  countries={countries} />} />
+        <Route path="/quiz/languages/find-country/type-answer"      element={<LanguagesFindCountryTA  countries={countries} />} />
+        <Route path="/quiz/languages/find-country/flashcard"        element={<LanguagesFindCountryFC  countries={countries} />} />
+
+        {/* ── Cities / find-city ── */}
+        <Route path="/quiz/cities/find-city/multiple-choice"        element={<CitiesFindCityMC        countries={countries} />} />
+        <Route path="/quiz/cities/find-city/type-answer"            element={<CitiesFindCityTA        countries={countries} />} />
+        <Route path="/quiz/cities/find-city/flashcard"              element={<CitiesFindCityFC        countries={countries} />} />
+
+        {/* ── Cities / find-country ── */}
+        <Route path="/quiz/cities/find-country/multiple-choice"     element={<CitiesFindCountryMC     countries={countries} />} />
+        <Route path="/quiz/cities/find-country/type-answer"         element={<CitiesFindCountryTA     countries={countries} />} />
+        <Route path="/quiz/cities/find-country/flashcard"           element={<CitiesFindCountryFC     countries={countries} />} />
 
         <Route path="*" element={<HomeScreen />} />
       </Routes>

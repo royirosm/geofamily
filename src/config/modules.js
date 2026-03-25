@@ -1,5 +1,6 @@
 // src/config/modules.js
-// Phase 7: sovereignty module added (country-or-territory + find-sovereign)
+// Phase 7:  sovereignty module added
+// Phase 10: currencies, codes, regions modules added (Wave 1)
 
 export const MODULES = [
 
@@ -63,7 +64,6 @@ export const MODULES = [
         modes: [
           { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
           { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: false },
-          // type-answer not applicable — answer is a visual flag
         ],
       },
     ],
@@ -83,7 +83,6 @@ export const MODULES = [
         emoji:    '🗺️',
         descKey:  'dirCountryOrTerritoryDesc',
         modes: [
-          // Uses SovereigntyBinary component — registered as 'multiple-choice' route
           { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
         ],
       },
@@ -99,14 +98,170 @@ export const MODULES = [
     ],
   },
 
+  // ── CURRENCIES ─────────────────────────────────────────────────────────────
+  {
+    id:        'currencies',
+    labelKey:  'modulesCurrencies',
+    emoji:     '💰',
+    gradient:  'from-amber-400 to-yellow-500',
+    available: true,
+    directions: [
+      {
+        id:       'find-currency',
+        labelKey: 'dirFindCurrency',
+        emoji:    '💵',
+        descKey:  'dirFindCurrencyDesc',
+        modes: [
+          { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
+          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false },
+          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: false },
+        ],
+      },
+      {
+        id:       'find-country',
+        labelKey: 'dirFindCountry',
+        emoji:    '❓',
+        descKey:  'dirFindCountryByCurrencyDesc',
+        modes: [
+          { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
+          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false },
+          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: false },
+        ],
+      },
+    ],
+  },
+
+  // ── COUNTRY CODES ──────────────────────────────────────────────────────────
+  {
+    id:        'codes',
+    labelKey:  'modulesCodes',
+    emoji:     '🔤',
+    gradient:  'from-blue-400 to-cyan-500',
+    available: true,
+    directions: [
+      {
+        id:       'find-code',
+        labelKey: 'dirFindCode',
+        emoji:    '🔡',
+        descKey:  'dirFindCodeDesc',
+        modes: [
+          { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
+          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false },
+          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: false },
+        ],
+      },
+      {
+        id:       'find-country',
+        labelKey: 'dirFindCountry',
+        emoji:    '❓',
+        descKey:  'dirFindCountryByCodeDesc',
+        modes: [
+          { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
+          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false },
+          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: false },
+        ],
+      },
+    ],
+  },
+
+  // ── REGIONS ────────────────────────────────────────────────────────────────
+  {
+    id:        'regions',
+    labelKey:  'modulesRegions',
+    emoji:     '🌍',
+    gradient:  'from-green-400 to-emerald-600',
+    available: true,
+    directions: [
+      {
+        id:       'find-region',
+        labelKey: 'dirFindRegion',
+        emoji:    '📍',
+        descKey:  'dirFindRegionDesc',
+        modes: [
+          { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
+          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false },
+          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: false },
+        ],
+      },
+      {
+        id:       'find-country',
+        labelKey: 'dirFindCountry',
+        emoji:    '❓',
+        descKey:  'dirFindCountryByRegionDesc',
+        modes: [
+          { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
+          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false },
+          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: false },
+        ],
+      },
+    ],
+  },
+
   // ── COMING SOON ────────────────────────────────────────────────────────────
+  // ── LANGUAGES ─────────────────────────────────────────────────────────────
+  {
+    id:        'languages',
+    labelKey:  'modulesLanguages',
+    emoji:     '🗣️',
+    gradient:  'from-indigo-400 to-violet-500',
+    available: true,
+    directions: [
+      {
+        id:       'find-language',
+        labelKey: 'dirFindLanguage',
+        emoji:    '💬',
+        descKey:  'dirFindLanguageDesc',
+        modes: [
+          { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
+          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false },
+          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: false },
+        ],
+      },
+      {
+        id:       'find-country',
+        labelKey: 'dirFindCountry',
+        emoji:    '❓',
+        descKey:  'dirFindCountryByLanguageDesc',
+        modes: [
+          { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
+          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false },
+          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: false },
+        ],
+      },
+    ],
+  },
+
+  // ── CITIES ─────────────────────────────────────────────────────────────────
   {
     id:        'cities',
     labelKey:  'modulesCities',
     emoji:     '🏙️',
-    gradient:  'from-violet-400 to-purple-600',
-    available: false,
-    directions: [],
+    gradient:  'from-rose-400 to-pink-600',
+    available: true,
+    directions: [
+      {
+        id:       'find-city',
+        labelKey: 'dirFindCity',
+        emoji:    '🏙️',
+        descKey:  'dirFindCityDesc',
+        modes: [
+          { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
+          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false },
+          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: false },
+        ],
+      },
+      {
+        id:       'find-country',
+        labelKey: 'dirFindCountry',
+        emoji:    '❓',
+        descKey:  'dirFindCountryByCityDesc',
+        modes: [
+          { id: 'multiple-choice', labelKey: 'modeMultipleChoice', emoji: '☑️', locked: false },
+          { id: 'type-answer',     labelKey: 'modeTypeAnswer',     emoji: '⌨️', locked: false },
+          { id: 'flashcard',       labelKey: 'modeFlashcard',      emoji: '🃏', locked: false },
+        ],
+      },
+    ],
   },
   {
     id:        'map-quiz',

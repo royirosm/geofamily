@@ -325,6 +325,80 @@ const translations = {
   handleTooShort:     { en: 'At least 2 characters.',            el: 'Τουλάχιστον 2 χαρακτήρες.'      },
   handleInvalidChars: { en: 'Letters, numbers and _ only.',      el: 'Μόνο γράμματα, αριθμοί και _.'  },
 
+  // ── Module labels ─────────────────────────────────────────────────────────────
+  modulesCurrencies:  { en: 'Currencies',     el: 'Νομίσματα'       },
+  modulesCodes:       { en: 'Country Codes',  el: 'Κωδικοί Χωρών'   },
+  modulesRegions:     { en: 'Regions',        el: 'Περιοχές'         },
+
+  // ── Direction labels — Currencies ─────────────────────────────────────────────
+  dirFindCurrency:             { en: 'Find the Currency',          el: 'Βρες το Νόμισμα'               },
+  dirFindCurrencyDesc:         { en: 'Given a country — name its currency', el: 'Δίνεται χώρα — βρες το νόμισμα' },
+  dirFindCountryByCurrencyDesc:{ en: 'Given a currency — name a country that uses it', el: 'Δίνεται νόμισμα — βρες χώρα που το χρησιμοποιεί' },
+
+  // ── Direction labels — Codes ───────────────────────────────────────────────────
+  dirFindCode:                 { en: 'Find the Code',              el: 'Βρες τον Κωδικό'               },
+  dirFindCodeDesc:             { en: 'Given a country — name its 2-letter code', el: 'Δίνεται χώρα — βρες τον κωδικό' },
+  dirFindCountryByCodeDesc:    { en: 'Given a code — name the country',          el: 'Δίνεται κωδικός — βρες τη χώρα' },
+
+  // ── Direction labels — Regions ────────────────────────────────────────────────
+  dirFindRegion:               { en: 'Find the Region',            el: 'Βρες την Περιοχή'              },
+  dirFindRegionDesc:           { en: 'Given a country — name its region', el: 'Δίνεται χώρα — βρες την περιοχή' },
+  dirFindCountryByRegionDesc:  { en: 'Given a region — name a country in it', el: 'Δίνεται περιοχή — βρες χώρα μέσα σε αυτή' },
+
+  // ── Multi-valid feedback note ─────────────────────────────────────────────────
+  // {n} is replaced at runtime with the count of other valid countries
+  alsoValidAnswers:   { en: 'Also correct: {n} other countries', el: 'Επίσης σωστό: {n} άλλες χώρες' },
+
+  // ── Region display names (used by t(`region${r}`) in CountriesTab) ────────────
+  regionAfrica:                  { en: 'Africa',                   el: 'Αφρική'                  },
+  regionAmericas:                { en: 'Americas',                 el: 'Αμερική'                 },
+  regionAsia:                    { en: 'Asia',                     el: 'Ασία'                    },
+  regionEurope:                  { en: 'Europe',                   el: 'Ευρώπη'                  },
+  regionOceania:                 { en: 'Oceania',                  el: 'Ωκεανία'                 },
+
+  // ── Module labels ─────────────────────────────────────────────────────────────
+  modulesCurrencies:  { en: 'Currencies',     el: 'Νομίσματα'       },
+  modulesCodes:       { en: 'Country Codes',  el: 'Κωδικοί Χωρών'   },
+  modulesRegions:     { en: 'Regions',        el: 'Περιοχές'         },
+
+  // ── Direction labels — Currencies ─────────────────────────────────────────────
+  dirFindCurrency:             { en: 'Find the Currency',          el: 'Βρες το Νόμισμα'               },
+  dirFindCurrencyDesc:         { en: 'Given a country — name its currency', el: 'Δίνεται χώρα — βρες το νόμισμα' },
+  dirFindCountryByCurrencyDesc:{ en: 'Given a currency — name a country that uses it', el: 'Δίνεται νόμισμα — βρες χώρα που το χρησιμοποιεί' },
+
+  // ── Direction labels — Codes ───────────────────────────────────────────────────
+  dirFindCode:                 { en: 'Find the Code',              el: 'Βρες τον Κωδικό'               },
+  dirFindCodeDesc:             { en: 'Given a country — name its 2-letter code', el: 'Δίνεται χώρα — βρες τον κωδικό' },
+  dirFindCountryByCodeDesc:    { en: 'Given a code — name the country',          el: 'Δίνεται κωδικός — βρες τη χώρα' },
+
+  // ── Direction labels — Regions ────────────────────────────────────────────────
+  dirFindRegion:               { en: 'Find the Region',            el: 'Βρες την Περιοχή'              },
+  dirFindRegionDesc:           { en: 'Given a country — name its region', el: 'Δίνεται χώρα — βρες την περιοχή' },
+  dirFindCountryByRegionDesc:  { en: 'Given a region — name a country in it', el: 'Δίνεται περιοχή — βρες χώρα μέσα σε αυτή' },
+
+  // ── Multi-valid feedback note ─────────────────────────────────────────────────
+  // {n} is replaced at runtime with the count of other valid countries
+  alsoValidAnswers:   { en: 'Also correct: {n} other countries', el: 'Επίσης σωστό: {n} άλλες χώρες' },
+
+  // ── Region display names (used by t(`region${r}`) in CountriesTab) ────────────
+  regionAfrica:                  { en: 'Africa',                   el: 'Αφρική'                  },
+  regionAmericas:                { en: 'Americas',                 el: 'Αμερική'                 },
+  regionAsia:                    { en: 'Asia',                     el: 'Ασία'                    },
+  regionEurope:                  { en: 'Europe',                   el: 'Ευρώπη'                  },
+  regionOceania:                 { en: 'Oceania',                  el: 'Ωκεανία'                 },
+
+  // ── Wave 2: Languages + Cities ────────────────────────────────────────────────
+  modulesLanguages:             { en: 'Languages',                  el: 'Γλώσσες'                        },
+  modulesCities:                { en: 'Major Cities',               el: 'Μεγάλες Πόλεις'                 },
+
+  dirFindLanguage:              { en: 'Find the Language',          el: 'Βρες τη Γλώσσα'                 },
+  dirFindLanguageDesc:          { en: 'Given a country — name its official language', el: 'Δίνεται χώρα — βρες την επίσημη γλώσσα' },
+  dirFindCountryByLanguageDesc: { en: 'Given a language — name a country that speaks it', el: 'Δίνεται γλώσσα — βρες χώρα που τη μιλά' },
+
+  dirFindCity:                  { en: 'Find a City',                el: 'Βρες Πόλη'                      },
+  dirFindCityDesc:              { en: 'Given a country — name a major city', el: 'Δίνεται χώρα — βρες μεγάλη πόλη' },
+  dirFindCountryByCityDesc:     { en: 'Given a city — name its country', el: 'Δίνεται πόλη — βρες τη χώρα'  },
+
 }
 
 
