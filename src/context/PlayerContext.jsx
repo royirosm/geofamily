@@ -1,12 +1,23 @@
 // src/context/PlayerContext.jsx
 // ─────────────────────────────────────────────────────────────────────────────
-// Phase 8A: pushPlayers() called (fire-and-forget) after every CRUD operation
-//           so the Firestore players list stays current automatically.
-//           useSync is imported and called inside the provider.
+// Phase 9.5: Identity foundations.
+//
+// Changes from Phase 9:
+//   • addPlayer() stamps the current Firebase UID onto the new player profile
+//     via getFirebaseUid() from useSync. This creates a permanent link between
+//     the player's app UUID and their Firebase anonymous auth identity.
+//   • Player profile shape gains two new optional fields:
+//       firebaseUid: string  — Firebase anonymous UID, set once at creation
+//       handle:      string  — globally unique display handle (empty by default)
+//   • updatePlayer() accepts handle updates (for the handle-claim flow).
+//   • Migration: existing players get firebaseUid = '' and handle = '' silently
+//     on first Phase 9.5 load (filled in by migrateProfiles).
+//   • Everything else (CRUD, sync, family) is unchanged from Phase 9.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createContext, useContext, useState, useCallback } from 'react'
-import { useSync } from '../hooks/useSync'
+import { useSync }     from '../hooks/useSync'
+import { useSettings } from './SettingsContext'
 
 const PlayerContext = createContext(null)
 
@@ -35,72 +46,124 @@ function saveActiveId(id) {
   } catch {}
 }
 
+// ── Migration ─────────────────────────────────────────────────────────────────
+// Phase 9:   adds familyCode + familyName to profiles that lack them
+// Phase 9.5: adds firebaseUid + handle to profiles that lack them
+// Both run only for profiles where the field is literally undefined (not '').
+// One-time, silent, runs at initial useState load only.
+
+function migrateProfiles(profiles, deviceFamilyCode, deviceFamilyName) {
+  let changed = false
+  const migrated = profiles.map(p => {
+    const patch = {}
+
+    // Phase 9 migration — assign device family to pre-Phase-9 players
+    if (p.familyCode === undefined) {
+      patch.familyCode = deviceFamilyCode ?? ''
+      patch.familyName = deviceFamilyName ?? ''
+      changed = true
+    }
+
+    // Phase 9.5 migration — add empty identity fields
+    if (p.firebaseUid === undefined) { patch.firebaseUid = ''; changed = true }
+    if (p.handle      === undefined) { patch.handle      = ''; changed = true }
+
+    return Object.keys(patch).length > 0 ? { ...p, ...patch } : p
+  })
+  return { migrated, changed }
+}
+
 export function PlayerProvider({ children }) {
-  const [profiles, setProfiles] = useState(loadProfiles)
+  const { familyCode: deviceFamilyCode, familyName: deviceFamilyName } = useSettings()
+
+  const [profiles, setProfiles] = useState(() => {
+    const raw = loadProfiles()
+    const { migrated, changed } = migrateProfiles(raw, deviceFamilyCode, deviceFamilyName)
+    if (changed) saveProfiles(migrated)
+    return migrated
+  })
+
   const [activeId, setActiveId] = useState(loadActiveId)
 
-  const { pushPlayers, pullAndMerge } = useSync()
+  const { pullAndMerge, pushProfile, pushAllLocal, getFirebaseUid } = useSync()
 
   const activePlayer = profiles.find(p => p.id === activeId) ?? null
 
-  // ── Pull on mount ─────────────────────────────────────────────────────────
-  // Runs once when the app opens. Merges Firestore → localStorage, then
-  // refreshes the in-memory profiles so the UI reflects the merged list.
+  // ── Pull on open ──────────────────────────────────────────────────────────
   const syncOnOpen = useCallback(async () => {
-    await pullAndMerge()
-    // Re-read localStorage after merge (pullAndMerge wrote to it directly)
+    await pullAndMerge(profiles)
     const refreshed = loadProfiles()
     setProfiles(refreshed)
-    // If the active player was deleted during merge, clear selection
     if (activeId && !refreshed.find(p => p.id === activeId)) {
       setActiveId(null)
       saveActiveId(null)
     }
-  }, [pullAndMerge, activeId])
+  }, [pullAndMerge, profiles, activeId])
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
 
-  function addPlayer(name, avatar, avatarBg, accentColor) {
+  function addPlayer(name, avatar, avatarBg, accentColor, familyCode, familyName) {
     const newPlayer = {
       id:          crypto.randomUUID(),
       name:        name.trim(),
       avatar,
-      avatarBg:    avatarBg    ?? 'bg-blue-400',
+      avatarBg:    avatarBg    ?? 'blue',
       accentColor: accentColor ?? 'blue',
+      familyCode:  familyCode  ?? deviceFamilyCode ?? '',
+      familyName:  familyName  ?? deviceFamilyName ?? '',
+      // Phase 9.5: identity fields
+      firebaseUid: getFirebaseUid() ?? '',
+      handle:      '',
       createdAt:   new Date().toISOString(),
       updatedAt:   new Date().toISOString(),
     }
     const updated = [...profiles, newPlayer]
     setProfiles(updated)
     saveProfiles(updated)
-    pushPlayers(updated)   // fire-and-forget
+    pushProfile(newPlayer)   // fire-and-forget
     return newPlayer
   }
 
-  function updatePlayer(id, { name, avatar, avatarBg, accentColor }) {
-    const updated = profiles.map(p =>
-      p.id === id
-        ? {
-            ...p,
-            name:        name?.trim()   ?? p.name,
-            avatar:      avatar         ?? p.avatar,
-            avatarBg:    avatarBg       ?? p.avatarBg,
-            accentColor: accentColor    ?? p.accentColor,
-            updatedAt:   new Date().toISOString(),
-          }
-        : p
-    )
-    setProfiles(updated)
-    saveProfiles(updated)
-    pushPlayers(updated)   // fire-and-forget
+  function updatePlayer(id, {
+    name, avatar, avatarBg, accentColor,
+    familyCode, familyName,
+    handle,      // Phase 9.5: handle update (after claimHandle succeeds)
+  }) {
+    let updated
+    setProfiles(prev => {
+      updated = prev.map(p =>
+        p.id === id
+          ? {
+              ...p,
+              name:        name?.trim()    ?? p.name,
+              avatar:      avatar          ?? p.avatar,
+              avatarBg:    avatarBg        ?? p.avatarBg,
+              accentColor: accentColor     ?? p.accentColor,
+              familyCode:  familyCode !== undefined ? familyCode : p.familyCode,
+              familyName:  familyName !== undefined ? familyName : p.familyName,
+              handle:      handle     !== undefined ? handle     : p.handle,
+              updatedAt:   new Date().toISOString(),
+            }
+          : p
+      )
+      saveProfiles(updated)
+      return updated
+    })
+    setTimeout(() => {
+      const player = (updated ?? profiles).find(p => p.id === id)
+      if (player) pushProfile(player)
+    }, 0)
   }
 
   function removePlayer(id) {
     const updated = profiles.filter(p => p.id !== id)
     setProfiles(updated)
     saveProfiles(updated)
-    if (activeId === id) { setActiveId(null); saveActiveId(null) }
-    pushPlayers(updated)   // fire-and-forget
+    if (activeId === id) {
+      const next = updated[0]?.id ?? null
+      setActiveId(next)
+      saveActiveId(next)
+    }
   }
 
   function switchPlayer(id) {
@@ -118,6 +181,7 @@ export function PlayerProvider({ children }) {
       profiles, activePlayer, activeId,
       addPlayer, updatePlayer, removePlayer, switchPlayer, clearActivePlayer,
       syncOnOpen,
+      pushAllLocal,
     }}>
       {children}
     </PlayerContext.Provider>

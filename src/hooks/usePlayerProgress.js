@@ -1,7 +1,7 @@
 // src/hooks/usePlayerProgress.js
 // ─────────────────────────────────────────────────────────────────────────────
-// Phase 8A: recordRound now fire-and-forget pushes progress + history to
-//           Firestore after writing to localStorage, via useSync.
+// Phase 9: pushProgress and pushHistory now receive the full player object
+//          (not just playerId) so useSync can route via player.familyCode.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback } from 'react'
@@ -115,13 +115,12 @@ export function getStatsForPlayer(playerId) {
     const accuracy     = totalAnswers > 0
       ? Math.round((totalCorrect / totalAnswers) * 100) : 0
 
-    // masterCount — distinct country codes at 'master' across all modules
-    const modules        = getPlayedModulesForPlayer(playerId)
-    const masteredCodes  = new Set()
-    const roundsByModule = {}
+    const modules           = getPlayedModulesForPlayer(playerId)
+    const masteredCodes     = new Set()
+    const roundsByModule    = {}
     const bestScoreByModule = {}
-    const byMode    = {}
-    const byDirection = {}
+    const byMode            = {}
+    const byDirection       = {}
 
     for (const modId of modules) {
       const prog = loadProgress(playerId, modId)
@@ -131,21 +130,18 @@ export function getStatsForPlayer(playerId) {
     }
 
     for (const round of history) {
-      const mod = round.moduleId ?? 'capitals'
-      const dir = round.direction ?? 'find-capital'
-      const mod_ = round.mode ?? 'multiple-choice'
+      const mod  = round.moduleId  ?? 'capitals'
+      const dir  = round.direction ?? 'find-capital'
+      const mod_ = round.mode      ?? 'multiple-choice'
 
-      // roundsByModule
       if (!roundsByModule[mod]) roundsByModule[mod] = []
       roundsByModule[mod].push(round)
 
-      // bestScoreByModule
       const acc = round.accuracy ?? 0
       if (!bestScoreByModule[mod] || acc > bestScoreByModule[mod]) {
         bestScoreByModule[mod] = acc
       }
 
-      // byDirection[mod][dir]
       if (!byDirection[mod])      byDirection[mod] = {}
       if (!byDirection[mod][dir]) byDirection[mod][dir] = { rounds: 0, accuracy: 0, bestAccuracy: 0, byMode: {} }
       const dRef = byDirection[mod][dir]
@@ -153,14 +149,12 @@ export function getStatsForPlayer(playerId) {
       dRef.accuracy     = Math.round(((dRef.accuracy * (dRef.rounds - 1)) + acc) / dRef.rounds)
       dRef.bestAccuracy = Math.max(dRef.bestAccuracy, acc)
 
-      // byDirection[mod][dir].byMode
       if (!dRef.byMode[mod_]) dRef.byMode[mod_] = { rounds: 0, accuracy: 0, bestAccuracy: 0 }
       const mRef = dRef.byMode[mod_]
       mRef.rounds++
       mRef.accuracy     = Math.round(((mRef.accuracy * (mRef.rounds - 1)) + acc) / mRef.rounds)
       mRef.bestAccuracy = Math.max(mRef.bestAccuracy, acc)
 
-      // byMode (legacy flat structure)
       if (!byMode[mod])       byMode[mod] = {}
       if (!byMode[mod][mod_]) byMode[mod][mod_] = { rounds: 0, accuracy: 0, bestAccuracy: 0 }
       const bmRef = byMode[mod][mod_]
@@ -169,11 +163,10 @@ export function getStatsForPlayer(playerId) {
       bmRef.bestAccuracy = Math.max(bmRef.bestAccuracy, acc)
     }
 
-    // mistakesByDirection
     const mistakesByDirection = {}
     for (const round of history) {
       if (!round.mistakes?.length) continue
-      const mod = round.moduleId ?? 'capitals'
+      const mod = round.moduleId  ?? 'capitals'
       const dir = round.direction ?? 'find-capital'
       if (!mistakesByDirection[mod])      mistakesByDirection[mod] = {}
       if (!mistakesByDirection[mod][dir]) mistakesByDirection[mod][dir] = {}
@@ -184,23 +177,11 @@ export function getStatsForPlayer(playerId) {
 
     return {
       totalRounds, accuracy,
-      masterCount:  masteredCodes.size,
-      countriesSeen: new Set(history.flatMap(r =>
-        (r.answers ?? []).map(a => a?.question?.country?.code).filter(Boolean)
-      )).size,
-      roundsByModule,
-      bestScoreByModule,
-      byMode,
-      byDirection,
+      masterCount:    masteredCodes.size,
+      roundsByModule, bestScoreByModule, byMode, byDirection,
       mistakesByDirection,
     }
-  } catch (err) {
-    console.warn('getStatsForPlayer error:', err)
-    return {
-      totalRounds: 0, accuracy: 0, masterCount: 0, countriesSeen: 0,
-      roundsByModule: {}, bestScoreByModule: {}, byMode: {}, byDirection: {}, mistakesByDirection: {},
-    }
-  }
+  } catch { return null }
 }
 
 // ── getLevelForPlayer ─────────────────────────────────────────────────────────
@@ -226,6 +207,9 @@ export function getLevelForPlayer(playerId) {
 }
 
 // ── getGlobalMasterCount ──────────────────────────────────────────────────────
+// Counts distinct country codes at 'master' strength across ALL modules for a
+// player. Used by HomeScreen (kids unlock badge) and ResultsScreen (unlock
+// detection). Exported as a plain function — no hook required.
 
 export function getGlobalMasterCount(playerId) {
   try {
@@ -280,7 +264,7 @@ export function usePlayerProgress(moduleId) {
     }
     saveProgress(activePlayer.id, moduleId, progress)
 
-    const history = loadHistory(activePlayer.id)
+    const history  = loadHistory(activePlayer.id)
     const newRound = {
       moduleId,
       direction,
@@ -295,9 +279,9 @@ export function usePlayerProgress(moduleId) {
     history.push(newRound)
     saveHistory(activePlayer.id, history)
 
-    // 8A: push to Firestore fire-and-forget
-    pushProgress(activePlayer.id, moduleId, progress)
-    pushHistory(activePlayer.id, history)
+    // Phase 9: pass full player object so useSync routes via player.familyCode
+    pushProgress(activePlayer, moduleId, progress)   // fire-and-forget
+    pushHistory(activePlayer, history)               // fire-and-forget
   }, [activePlayer, moduleId, pushProgress, pushHistory])
 
   const getStats = useCallback(() => {

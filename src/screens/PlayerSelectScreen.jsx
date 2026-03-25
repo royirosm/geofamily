@@ -1,15 +1,25 @@
-// PlayerSelectScreen.jsx
-// "Who's playing?" screen — shown on launch or when switching players.
-//
-// Profile cards show: avatar builder (emoji + bg colour), accent colour,
-// level/title badge, and stats summary (rounds, accuracy, mastered).
-// Supports add, edit, and delete with inline confirm.
+// src/screens/PlayerSelectScreen.jsx
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 9 additions (all other code is identical to Phase 8A):
+//   • PlayerForm in edit mode now shows a "Family" section at the bottom.
+//     Players can create a family, join via PIN, generate an invite PIN, or
+//     leave their current family — all scoped to the individual player.
+//   • onSave signature extended: { name, avatar, avatarBg, accentColor,
+//     familyCode, familyName } — handlers in the main screen pass these
+//     through to updatePlayer() / addPlayer().
+//   • All original exports (BG_COLORS, ACCENT_COLORS, getAccent, getBg) are
+//     unchanged — Navbar, StatsScreen, LeaderboardScreen, SettingsModal all
+//     import from here and must not break.
+// ─────────────────────────────────────────────────────────────────────────────
 
-import { useState }                                from 'react'
-import { useLanguage }                             from '../context/LanguageContext'
-import { useAgeMode }                              from '../context/AgeModeContext'
-import { usePlayer }                               from '../context/PlayerContext'
-import { getStatsForPlayer, getLevelForPlayer }    from '../hooks/usePlayerProgress'
+import { useState }                             from 'react'
+import { useLanguage }                          from '../context/LanguageContext'
+import { useAgeMode }                           from '../context/AgeModeContext'
+import { usePlayer }                            from '../context/PlayerContext'
+import { getStatsForPlayer, getLevelForPlayer } from '../hooks/usePlayerProgress'
+import { useSync }                              from '../hooks/useSync'
+import { setDoc, doc }                          from 'firebase/firestore'
+import { db }                                   from '../lib/firebase'
 
 // ── Avatar emoji options ──────────────────────────────────────────────────────
 const AVATARS = [
@@ -53,7 +63,6 @@ export function getBg(name) {
 // Uses pure helper functions (not hooks) to read stats — safe inside .map()
 
 function PlayerCard({ player, isKids, onSelect, onEdit, onDelete, deleteConfirm, onDeleteConfirm, onDeleteCancel, t, lang }) {
-  // Pure reads — no hooks called here
   const stats  = getStatsForPlayer(player.id)
   const level  = getLevelForPlayer(player.id)
   const accent = getAccent(player.accentColor)
@@ -79,16 +88,17 @@ function PlayerCard({ player, isKids, onSelect, onEdit, onDelete, deleteConfirm,
   }
 
   return (
-    <div className="relative group">
+    <div className={`
+      flex items-center gap-3 px-4
+      bg-white border-2 border-gray-100
+      hover:border-blue-200
+      rounded-2xl shadow-sm transition-all duration-200
+      ${isKids ? 'py-4' : 'py-3'}
+    `}>
+      {/* Tappable area — select player */}
       <button
         onClick={onSelect}
-        className={`
-          w-full flex items-center gap-4 px-4
-          bg-white border-2 border-gray-100
-          hover:border-blue-200 hover:bg-blue-50
-          rounded-2xl transition-all duration-200 active:scale-95 shadow-sm
-          ${isKids ? 'py-4' : 'py-3'}
-        `}
+        className="flex items-center gap-3 flex-1 min-w-0 text-left active:scale-95 transition-transform"
       >
         {/* Avatar bubble */}
         <div className={`flex-shrink-0 w-12 h-12 rounded-full ${bg.bg} flex items-center justify-center shadow-sm`}>
@@ -96,7 +106,7 @@ function PlayerCard({ player, isKids, onSelect, onEdit, onDelete, deleteConfirm,
         </div>
 
         {/* Info */}
-        <div className="flex-1 text-left min-w-0">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`font-bold text-gray-800 truncate ${isKids ? 'text-xl' : 'text-base'}`}>
               {player.name}
@@ -105,7 +115,7 @@ function PlayerCard({ player, isKids, onSelect, onEdit, onDelete, deleteConfirm,
               {level.title[lang] ?? level.title.en}
             </span>
           </div>
-          <div className="flex items-center gap-3 mt-0.5">
+          <div className="flex items-center gap-3 mt-0.5 flex-wrap">
             <span className="text-xs text-gray-400">
               🎮 {stats.totalRounds} {t('playerStatRounds')}
             </span>
@@ -115,29 +125,214 @@ function PlayerCard({ player, isKids, onSelect, onEdit, onDelete, deleteConfirm,
             {stats.masterCount > 0 && (
               <span className="text-xs text-gray-400">⭐ {stats.masterCount}</span>
             )}
+            {player.familyCode?.length > 10 && (
+              <span className="text-xs text-gray-400">🏠 {player.familyName || 'Family'}</span>
+            )}
           </div>
         </div>
-
-        <span className="text-blue-400 text-lg flex-shrink-0">▶</span>
       </button>
 
-      {/* Edit button */}
-      <button
-        onClick={e => { e.stopPropagation(); onEdit() }}
-        className="absolute right-10 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-gray-300 hover:text-blue-400 transition-colors text-base"
-        aria-label={`Edit ${player.name}`}
-      >
-        ✏️
-      </button>
+      {/* Action buttons — flex row, no absolute positioning */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <button
+          onClick={onEdit}
+          className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-300 hover:text-blue-400 hover:bg-blue-50 transition-colors text-sm"
+          aria-label={`Edit ${player.name}`}
+        >
+          ✏️
+        </button>
+        <button
+          onClick={onDelete}
+          className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors text-lg leading-none"
+          aria-label={`Delete ${player.name}`}
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  )
+}
 
-      {/* Delete button */}
-      <button
-        onClick={e => { e.stopPropagation(); onDelete() }}
-        className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors text-xl leading-none"
-        aria-label={`Delete ${player.name}`}
-      >
-        ×
-      </button>
+// ── FamilySection (Phase 9 only) ──────────────────────────────────────────────
+// Renders inside PlayerForm when editing an existing player.
+// Completely self-contained — no changes to PlayerForm's existing logic.
+// onChange(code, name) is called whenever family membership changes, and
+// PlayerForm lifts the values into its own state to include in onSave().
+
+function FamilySection({ familyCode, familyName, onChange, isKids, t }) {
+  const { joinViaPin } = useSync()
+
+  const [view,       setView]       = useState('idle') // idle | create | join | confirm-leave
+  const [createName, setCreateName] = useState('')
+  const [pinInput,   setPinInput]   = useState('')
+  const [activePin,  setActivePin]  = useState(null)
+  const [loading,    setLoading]    = useState(false)
+  const [error,      setError]      = useState('')
+
+  const hasFamilyCode = familyCode?.length > 10
+
+  async function handleCreate() {
+    if (!createName.trim()) { setError('Please enter a family name'); return }
+    setLoading(true); setError('')
+    onChange(crypto.randomUUID(), createName.trim())
+    setView('idle'); setCreateName('')
+    setLoading(false)
+  }
+
+  async function handleGeneratePin() {
+    if (!hasFamilyCode) { setError('Create a family first'); return }
+    setLoading(true); setError('')
+    try {
+      const pin = String(Math.floor(100000 + Math.random() * 900000))
+      await setDoc(doc(db, 'joinPins', pin), {
+        familyCode,
+        familyName: familyName || '',
+        expiresAt:  Date.now() + 10 * 60 * 1000,
+      })
+      setActivePin(pin)
+    } catch {
+      setError('Could not generate PIN. Check your connection.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleJoin() {
+    setLoading(true); setError('')
+    const result = await joinViaPin(pinInput)
+    if (result.familyCode) {
+      onChange(result.familyCode, result.familyName ?? '')
+      setView('idle'); setPinInput('')
+    } else {
+      const msgs = {
+        not_found: 'PIN not found.', expired: 'PIN has expired.',
+        invalid_format: 'Enter a 6-digit PIN.', network: 'Network error.',
+      }
+      setError(msgs[result.error] ?? 'Something went wrong.')
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div className="border-2 border-gray-100 rounded-2xl p-4 space-y-3">
+      {/* Header row */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className={`font-bold text-gray-700 ${isKids ? 'text-base' : 'text-sm'}`}>
+            🏠 {t('syncFamilyTitle') ?? 'Family sync'}
+          </p>
+          <p className={`mt-0.5 ${isKids ? 'text-sm' : 'text-xs'} ${hasFamilyCode ? 'text-gray-500' : 'text-gray-400'}`}>
+            {hasFamilyCode ? (familyName || 'My Family') : (t('syncGuestLabel') ?? 'Guest — local only')}
+          </p>
+        </div>
+        {hasFamilyCode && view === 'idle' && (
+          <span className="text-xs font-semibold text-green-500">✓ Syncing</span>
+        )}
+      </div>
+
+      {/* Active PIN banner */}
+      {activePin && view === 'idle' && (
+        <div className="bg-blue-50 rounded-xl p-3 text-center">
+          <p className="text-xs text-gray-500 mb-1">{t('syncSharePin') ?? 'Share this PIN (10 min)'}</p>
+          <p className="text-3xl font-black tracking-widest text-blue-600">{activePin}</p>
+          <button onClick={() => setActivePin(null)} className="text-xs text-gray-400 mt-1 underline">
+            {t('syncDismiss') ?? 'Dismiss'}
+          </button>
+        </div>
+      )}
+
+      {error && <p className="text-xs text-red-500 text-center">{error}</p>}
+
+      {/* Idle — action buttons */}
+      {view === 'idle' && (
+        <div className="flex flex-wrap gap-2">
+          {hasFamilyCode ? (
+            <>
+              <button onClick={handleGeneratePin} disabled={loading}
+                className="flex-1 py-2 text-xs font-semibold rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors disabled:opacity-50">
+                {loading ? '…' : `📲 ${t('syncGeneratePin') ?? 'Add device'}`}
+              </button>
+              <button onClick={() => { setView('join'); setError(''); setPinInput('') }}
+                className="flex-1 py-2 text-xs font-semibold rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors">
+                🔑 {t('syncChangeFamily') ?? 'Change family'}
+              </button>
+              <button onClick={() => setView('confirm-leave')}
+                className="py-2 px-3 text-xs font-semibold rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
+                {t('syncLeave') ?? 'Leave'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => { setView('create'); setError('') }}
+                className="flex-1 py-2 text-xs font-semibold rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+                ✨ {t('syncCreate') ?? 'Create family'}
+              </button>
+              <button onClick={() => { setView('join'); setError(''); setPinInput('') }}
+                className="flex-1 py-2 text-xs font-semibold rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors">
+                🔑 {t('syncJoin') ?? 'Join via PIN'}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Create family */}
+      {view === 'create' && (
+        <div className="space-y-2">
+          <input value={createName} onChange={e => { setCreateName(e.target.value); setError('') }}
+            maxLength={30} placeholder={t('syncFamilyNamePlaceholder') ?? 'Family name…'}
+            className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-blue-400" />
+          <div className="flex gap-2">
+            <button onClick={() => { setView('idle'); setError('') }}
+              className="flex-1 py-2 text-sm font-semibold rounded-xl border-2 border-gray-200 text-gray-600">
+              {t('exitCancel') ?? 'Cancel'}
+            </button>
+            <button onClick={handleCreate} disabled={loading || !createName.trim()}
+              className="flex-1 py-2 text-sm font-semibold rounded-xl bg-blue-500 text-white disabled:opacity-50">
+              {loading ? '…' : (t('syncCreateConfirm') ?? 'Create')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Join via PIN */}
+      {view === 'join' && (
+        <div className="space-y-2">
+          <input value={pinInput}
+            onChange={e => { setPinInput(e.target.value.replace(/\D/g, '').slice(0, 6)); setError('') }}
+            maxLength={6} inputMode="numeric" placeholder="000000"
+            className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm text-center tracking-widest font-bold focus:outline-none focus:border-blue-400" />
+          <div className="flex gap-2">
+            <button onClick={() => { setView('idle'); setError('') }}
+              className="flex-1 py-2 text-sm font-semibold rounded-xl border-2 border-gray-200 text-gray-600">
+              {t('exitCancel') ?? 'Cancel'}
+            </button>
+            <button onClick={handleJoin} disabled={loading || pinInput.length !== 6}
+              className="flex-1 py-2 text-sm font-semibold rounded-xl bg-blue-500 text-white disabled:opacity-50">
+              {loading ? '…' : (t('syncJoinConfirm') ?? 'Join')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Leave confirmation */}
+      {view === 'confirm-leave' && (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-500 text-center leading-relaxed">
+            {t('syncLeaveWarning') ?? 'Your progress stays on this device but sync will stop.'}
+          </p>
+          <div className="flex gap-2">
+            <button onClick={() => setView('idle')}
+              className="flex-1 py-2 text-sm font-semibold rounded-xl border-2 border-gray-200 text-gray-600">
+              {t('exitCancel') ?? 'Cancel'}
+            </button>
+            <button onClick={() => { onChange('', ''); setView('idle') }}
+              className="flex-1 py-2 text-sm font-semibold rounded-xl bg-red-500 text-white">
+              {t('syncLeaveConfirm') ?? 'Leave family'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -151,6 +346,10 @@ function PlayerForm({ initial, onSave, onCancel, isKids, t, existingNames }) {
   const [accentColor, setAccentColor] = useState(initial?.accentColor ?? 'blue')
   const [nameError,   setNameError]   = useState('')
 
+  // Phase 9: family state — lifted so FamilySection can update it
+  const [familyCode, setFamilyCode]   = useState(initial?.familyCode ?? '')
+  const [familyName, setFamilyName]   = useState(initial?.familyName ?? '')
+
   const bg     = getBg(avatarBg)
   const accent = getAccent(accentColor)
 
@@ -158,7 +357,8 @@ function PlayerForm({ initial, onSave, onCancel, isKids, t, existingNames }) {
     const trimmed = name.trim()
     if (!trimmed) { setNameError(t('playerNameRequired')); return }
     if (existingNames.includes(trimmed.toLowerCase())) { setNameError(t('playerNameTaken')); return }
-    onSave({ name: trimmed, avatar, avatarBg, accentColor })
+    // Phase 9: include familyCode + familyName in the payload
+    onSave({ name: trimmed, avatar, avatarBg, accentColor, familyCode, familyName })
   }
 
   return (
@@ -258,6 +458,17 @@ function PlayerForm({ initial, onSave, onCancel, isKids, t, existingNames }) {
         </div>
       </div>
 
+      {/* Phase 9: Family section — edit mode only */}
+      {!!initial && (
+        <FamilySection
+          familyCode={familyCode}
+          familyName={familyName}
+          onChange={(code, name) => { setFamilyCode(code); setFamilyName(name) }}
+          isKids={isKids}
+          t={t}
+        />
+      )}
+
       {/* Actions */}
       <div className="flex gap-2 pt-1">
         <button
@@ -279,25 +490,36 @@ function PlayerForm({ initial, onSave, onCancel, isKids, t, existingNames }) {
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 
-export default function PlayerSelectScreen({ onDone }) {
+export default function PlayerSelectScreen({ onDone, initialEditId }) {
   const { lang, t }     = useLanguage()
   const { isKids }      = useAgeMode()
   const { profiles, addPlayer, updatePlayer, removePlayer, switchPlayer } = usePlayer()
 
-  const [mode,          setMode]          = useState('list') // 'list' | 'add' | 'edit'
-  const [editingId,     setEditingId]     = useState(null)
+  // If initialEditId is supplied, jump straight into edit mode for that player
+  const [mode,          setMode]          = useState(initialEditId ? 'edit' : 'list')
+  const [editingId,     setEditingId]     = useState(initialEditId ?? null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
 
-  function handleSelect(id)  { switchPlayer(id); onDone() }
+  function handleSelect(id) { switchPlayer(id); onDone() }
 
-  function handleAdd({ name, avatar, avatarBg, accentColor }) {
-    const player = addPlayer(name, avatar, avatarBg, accentColor)
+  // Phase 9: forward familyCode + familyName through to addPlayer
+  function handleAdd({ name, avatar, avatarBg, accentColor, familyCode, familyName }) {
+    const player = addPlayer(name, avatar, avatarBg, accentColor, familyCode, familyName)
     switchPlayer(player.id)
     onDone()
   }
 
-  function handleEdit({ name, avatar, avatarBg, accentColor }) {
-    updatePlayer(editingId, { name, avatar, avatarBg, accentColor })
+  // Phase 9: forward familyCode + familyName through to updatePlayer
+  function handleEdit({ name, avatar, avatarBg, accentColor, familyCode, familyName }) {
+    updatePlayer(editingId, { name, avatar, avatarBg, accentColor, familyCode, familyName })
+    // If we jumped straight to edit (from Navbar), return to wherever we came from
+    if (initialEditId) { onDone(); return }
+    setMode('list'); setEditingId(null)
+  }
+
+  // Cancel from edit: if opened directly via initialEditId, go back via onDone
+  function handleEditCancel() {
+    if (initialEditId) { onDone(); return }
     setMode('list'); setEditingId(null)
   }
 
@@ -381,7 +603,7 @@ export default function PlayerSelectScreen({ onDone }) {
           <PlayerForm
             initial={editingPlayer}
             onSave={handleEdit}
-            onCancel={() => { setMode('list'); setEditingId(null) }}
+            onCancel={handleEditCancel}
             isKids={isKids}
             t={t}
             existingNames={takenNames}

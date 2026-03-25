@@ -1,57 +1,31 @@
 // src/hooks/useSync.js
 // ─────────────────────────────────────────────────────────────────────────────
-// Fixes applied in this version:
-//   Fix 1  — generateJoinPin returns {ok,pin} or {ok:false,error} — never throws
-//             so callers can surface errors in UI
-//   Fix 2  — pushAllLocal() exported; called after createFamily() to upload
-//             all existing local data immediately on family creation
-//   Fix 7  — pushAllLocal() also called after joinViaPin() succeeds so Device B
-//             uploads its own data right away
-//   Fix 8  — normaliseHistory() handles both old (raw array) and new ({rounds:[]})
-//             Firestore formats, preventing data loss when pulling legacy docs
+// Phase 9.5: Identity foundations.
+//
+// Changes from Phase 9:
+//   • Firebase UID is now tracked in a ref AND exposed as getFirebaseUid()
+//     so PlayerContext can stamp it onto new player profiles.
+//   • pushProfile() writes firebaseUid into the Firestore profile doc.
+//     Firestore rules can then verify ownership: request.auth.uid == resource.data.firebaseUid
+//   • getFirebaseUid() — synchronous getter for the current Firebase UID,
+//     returns null if auth hasn't resolved yet.
+//   • No other behaviour changes — all Phase 9 sync logic is unchanged.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import {
-  doc, getDoc, setDoc, collection,
-  getDocs, deleteDoc,
+  getDoc, setDoc, doc, getDocs, collection,
 } from 'firebase/firestore'
-import { signInAnonymously, onAuthStateChanged } from 'firebase/auth'
+import {
+  onAuthStateChanged, signInAnonymously,
+} from 'firebase/auth'
 import { db, auth } from '../lib/firebase'
 import { useSettings } from '../context/SettingsContext'
 
-// ── Strength ordering ─────────────────────────────────────────────────────────
-const STRENGTH_ORDER = ['new', 'beginner', 'learner', 'practising', 'advanced', 'master']
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 function strengthRank(s) {
-  const i = STRENGTH_ORDER.indexOf(s)
-  return i === -1 ? 0 : i
-}
-
-// ── Merge helpers ─────────────────────────────────────────────────────────────
-
-function mergePlayers(local, remote) {
-  const byId = {}
-  for (const p of local)  byId[p.id] = p
-  for (const p of remote) {
-    const existing = byId[p.id]
-    if (!existing) {
-      byId[p.id] = p
-    } else {
-      const localTime  = existing.updatedAt ?? existing.createdAt ?? 0
-      const remoteTime = p.updatedAt        ?? p.createdAt        ?? 0
-      if (remoteTime > localTime) byId[p.id] = p
-    }
-  }
-  const seen   = {}
-  const result = []
-  const sorted = Object.values(byId).sort(
-    (a, b) => (a.createdAt ?? '') < (b.createdAt ?? '') ? -1 : 1
-  )
-  for (const p of sorted) {
-    const key = p.name.toLowerCase().trim()
-    if (!seen[key]) { seen[key] = true; result.push(p) }
-  }
-  return result
+  return ['new', 'beginner', 'learner', 'practising', 'advanced', 'master'].indexOf(s ?? 'new')
 }
 
 function mergeProgress(local, remote) {
@@ -75,8 +49,6 @@ function mergeProgress(local, remote) {
   return merged
 }
 
-// Fix 8: accepts raw array (old localStorage format), {rounds:[]} (new format),
-// or a raw Firestore doc data object — all normalised to a plain rounds array.
 function normaliseHistory(raw) {
   if (!raw) return []
   if (Array.isArray(raw)) return raw
@@ -104,35 +76,51 @@ function lsSet(key, val) {
   try { localStorage.setItem(key, JSON.stringify(val)) } catch {}
 }
 
-// ── Collect all local progress + history for a set of players ─────────────────
+// ── Collect all local progress + history for a single player ─────────────────
 
-function collectLocalData(profiles) {
+function collectLocalDataForPlayer(player) {
   const progressDocs = []
-  const historyDocs  = []
-  for (const player of profiles) {
-    const prefix = `geofamily_progress_${player.id}_`
-    for (const key of Object.keys(localStorage)) {
-      if (!key.startsWith(prefix)) continue
-      const moduleId = key.slice(prefix.length)
-      const map      = lsGet(key) ?? {}
-      if (Object.keys(map).length > 0) progressDocs.push({ playerId: player.id, moduleId, map })
-    }
-    const rounds = normaliseHistory(lsGet(`geofamily_history_${player.id}`))
-    if (rounds.length > 0) historyDocs.push({ playerId: player.id, rounds })
+  const prefix = `geofamily_progress_${player.id}_`
+  for (const key of Object.keys(localStorage)) {
+    if (!key.startsWith(prefix)) continue
+    const moduleId = key.slice(prefix.length)
+    const map      = lsGet(key) ?? {}
+    if (Object.keys(map).length > 0) progressDocs.push({ moduleId, map })
   }
-  return { progressDocs, historyDocs }
+  const rounds = normaliseHistory(lsGet(`geofamily_history_${player.id}`))
+  return { progressDocs, rounds }
+}
+
+// ── Firestore path builders ───────────────────────────────────────────────────
+
+function playerProfilePath(playerId)            { return doc(db, 'players', playerId, 'data', 'profile') }
+function playerProgressPath(playerId, moduleId) { return doc(db, 'players', playerId, 'progress', moduleId) }
+function playerHistoryPath(playerId)            { return doc(db, 'players', playerId, 'data', 'history') }
+function familyMemberPath(familyCode, playerId) { return doc(db, 'families', familyCode, 'members', playerId) }
+
+// Phase 8A legacy paths (read-only during migration)
+function legacyProgressPath(familyCode, playerId, moduleId) {
+  return doc(db, 'families', familyCode, 'progress', `${playerId}_${moduleId}`)
+}
+function legacyHistoryPath(familyCode, playerId) {
+  return doc(db, 'families', familyCode, 'history', playerId)
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useSync() {
-  const { familyCode, syncEnabled } = useSettings()
-  const authedRef = useRef(false)
+  const { familyCode: deviceFamilyCode, familyName: deviceFamilyName } = useSettings()
+
+  // Phase 9.5: track Firebase UID so we can stamp it onto player profiles
+  const firebaseUidRef = useRef(null)
 
   // ── Anonymous Auth ────────────────────────────────────────────────────────
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, user => {
-      if (user) { authedRef.current = true; return }
+      if (user) {
+        firebaseUidRef.current = user.uid
+        return
+      }
       signInAnonymously(auth).catch(err =>
         console.warn('[useSync] anon auth failed:', err)
       )
@@ -140,190 +128,245 @@ export function useSync() {
     return unsub
   }, [])
 
-  // ── Pull on open ──────────────────────────────────────────────────────────
-  const pullAndMerge = useCallback(async () => {
-    if (!syncEnabled || !familyCode) return
+  // ── Expose Firebase UID ───────────────────────────────────────────────────
+  // Called by PlayerContext when creating a new player so the UID is stored
+  // on the profile. Returns null if auth hasn't resolved yet (rare race).
+  const getFirebaseUid = useCallback(() => {
+    return firebaseUidRef.current ?? auth.currentUser?.uid ?? null
+  }, [])
+
+  // ── Push profile ──────────────────────────────────────────────────────────
+  // Phase 9.5: now writes firebaseUid into the Firestore profile doc.
+  // Firestore rules should verify: request.auth.uid == resource.data.firebaseUid
+  const pushProfile = useCallback(async (player) => {
+    if (!player?.id) return
     try {
-      const playersSnap = await getDoc(doc(db, 'families', familyCode, 'sync', 'playersList'))
-      if (playersSnap.exists()) {
-        const remotePlayers = playersSnap.data().players ?? []
-        const localPlayers  = lsGet('geofamily_players') ?? []
-        const merged        = mergePlayers(localPlayers, remotePlayers)
-        lsSet('geofamily_players', merged)
+      await setDoc(playerProfilePath(player.id), {
+        name:        player.name,
+        avatar:      player.avatar,
+        avatarBg:    player.avatarBg,
+        accentColor: player.accentColor,
+        handle:      player.handle      ?? '',   // Phase 9.5: globally unique handle
+        familyCode:  player.familyCode  ?? '',
+        familyName:  player.familyName  ?? '',
+        firebaseUid: player.firebaseUid ?? firebaseUidRef.current ?? '',  // Phase 9.5
+        updatedAt:   Date.now(),
+      }, { merge: true })
 
-        // Fetch all progress docs in one call
-        const progressSnaps = await getDocs(
-          collection(db, 'families', familyCode, 'progress')
-        )
-
-        for (const player of merged) {
-          // Progress
-          for (const snap of progressSnaps.docs) {
-            if (!snap.id.startsWith(player.id + '_')) continue
-            const moduleId  = snap.id.slice(player.id.length + 1)
-            const remoteMap = snap.data().map ?? {}
-            const localKey  = `geofamily_progress_${player.id}_${moduleId}`
-            lsSet(localKey, mergeProgress(lsGet(localKey) ?? {}, remoteMap))
-          }
-
-          // History — Fix 8: normalise before merging
-          const histSnap = await getDoc(
-            doc(db, 'families', familyCode, 'history', player.id)
-          )
-          if (histSnap.exists()) {
-            const remoteRounds = normaliseHistory(histSnap.data())
-            const localKey     = `geofamily_history_${player.id}`
-            const localRounds  = normaliseHistory(lsGet(localKey))
-            lsSet(localKey, { rounds: mergeHistory(localRounds, remoteRounds) })
-          }
-        }
+      // Keep family member index for leaderboard queries
+      if (player.familyCode?.length > 10) {
+        await setDoc(familyMemberPath(player.familyCode, player.id), {
+          name:       player.name,
+          avatar:     player.avatar,
+          familyCode: player.familyCode,
+          joinedAt:   player.createdAt ?? new Date().toISOString(),
+        }, { merge: true })
       }
-
-      await setDoc(
-        doc(db, 'families', familyCode, 'sync', 'meta'),
-        { lastSyncAt: Date.now() },
-        { merge: true }
-      )
     } catch (err) {
-      console.warn('[useSync] pullAndMerge failed:', err)
+      console.warn('[useSync] pushProfile failed:', err)
     }
-  }, [syncEnabled, familyCode])
-
-  // ── Push players ──────────────────────────────────────────────────────────
-  const pushPlayers = useCallback(async (profiles) => {
-    if (!syncEnabled || !familyCode) return
-    try {
-      await setDoc(
-        doc(db, 'families', familyCode, 'sync', 'playersList'),
-        { players: profiles, updatedAt: Date.now() },
-        { merge: false }
-      )
-    } catch (err) {
-      console.warn('[useSync] pushPlayers failed:', err)
-    }
-  }, [syncEnabled, familyCode])
+  }, [])
 
   // ── Push progress ─────────────────────────────────────────────────────────
-  const pushProgress = useCallback(async (playerId, moduleId, progressMap) => {
-    if (!syncEnabled || !familyCode) return
+  const pushProgress = useCallback(async (player, moduleId, progressMap) => {
+    if (!player?.familyCode || player.familyCode.length <= 10) return
     try {
-      await setDoc(
-        doc(db, 'families', familyCode, 'progress', `${playerId}_${moduleId}`),
-        { map: progressMap, updatedAt: Date.now() },
-        { merge: false }
-      )
+      await setDoc(playerProgressPath(player.id, moduleId), {
+        map:       progressMap,
+        updatedAt: Date.now(),
+      }, { merge: false })
     } catch (err) {
       console.warn('[useSync] pushProgress failed:', err)
     }
-  }, [syncEnabled, familyCode])
+  }, [])
 
   // ── Push history ──────────────────────────────────────────────────────────
-  const pushHistory = useCallback(async (playerId, rounds) => {
-    if (!syncEnabled || !familyCode) return
+  const pushHistory = useCallback(async (player, rounds) => {
+    if (!player?.familyCode || player.familyCode.length <= 10) return
     try {
-      await setDoc(
-        doc(db, 'families', familyCode, 'history', playerId),
-        { rounds, updatedAt: Date.now() },
-        { merge: false }
-      )
+      await setDoc(playerHistoryPath(player.id), {
+        rounds,
+        updatedAt: Date.now(),
+      }, { merge: false })
     } catch (err) {
       console.warn('[useSync] pushHistory failed:', err)
     }
-  }, [syncEnabled, familyCode])
+  }, [])
 
-  // ── Fix 2 + 7: Push ALL local data ───────────────────────────────────────
-  // Called after createFamily() and after joinViaPin() to immediately upload
-  // all existing local players, progress, and history to Firestore.
-  // Uses the familyCode/syncEnabled values captured at call time via closure —
-  // caller must ensure these are set before calling (SettingsContext updates
-  // are synchronous so this is safe when called right after createFamily/joinFamily).
-  const pushAllLocal = useCallback(async (profiles, overrideFamilyCode) => {
-    // overrideFamilyCode is passed when calling right after createFamily/joinFamily,
-    // before the context re-render has propagated the new familyCode.
-    const fc = overrideFamilyCode ?? familyCode
-    if (!fc) return
+  // ── Push all local data for a single player ───────────────────────────────
+  const pushAllLocal = useCallback(async (player) => {
+    if (!player?.id || !player?.familyCode || player.familyCode.length <= 10) return
     try {
-      await setDoc(
-        doc(db, 'families', fc, 'sync', 'playersList'),
-        { players: profiles, updatedAt: Date.now() },
-        { merge: false }
-      )
-      await setDoc(
-        doc(db, 'families', fc, 'sync', 'meta'),
-        { createdAt: Date.now(), lastSyncAt: Date.now() },
-        { merge: true }
-      )
-
-      const { progressDocs, historyDocs } = collectLocalData(profiles)
-
-      await Promise.all([
-        ...progressDocs.map(({ playerId, moduleId, map }) =>
-          setDoc(
-            doc(db, 'families', fc, 'progress', `${playerId}_${moduleId}`),
-            { map, updatedAt: Date.now() },
-            { merge: false }
-          )
-        ),
-        ...historyDocs.map(({ playerId, rounds }) =>
-          setDoc(
-            doc(db, 'families', fc, 'history', playerId),
-            { rounds, updatedAt: Date.now() },
-            { merge: false }
-          )
-        ),
-      ])
+      await pushProfile(player)
+      const { progressDocs, rounds } = collectLocalDataForPlayer(player)
+      for (const { moduleId, map } of progressDocs) {
+        await setDoc(playerProgressPath(player.id, moduleId), {
+          map, updatedAt: Date.now(),
+        }, { merge: false })
+      }
+      if (rounds.length > 0) {
+        await setDoc(playerHistoryPath(player.id), {
+          rounds, updatedAt: Date.now(),
+        }, { merge: false })
+      }
     } catch (err) {
       console.warn('[useSync] pushAllLocal failed:', err)
     }
-  }, [familyCode])
+  }, [pushProfile])
 
-  // ── Fix 1: Generate join PIN ──────────────────────────────────────────────
-  // Returns {ok: true, pin} on success, {ok: false, error} on failure.
-  // Never throws — caller can safely show error in UI.
-  const generateJoinPin = useCallback(async (familyNameArg) => {
-    if (!syncEnabled || !familyCode) {
-      return { ok: false, error: 'no_family' }
+  // ── Pull and merge ────────────────────────────────────────────────────────
+  const pullAndMerge = useCallback(async (profiles = []) => {
+    for (const player of profiles) {
+      if (!player?.familyCode || player.familyCode.length <= 10) continue
+      try {
+        const progressSnaps = await getDocs(
+          collection(db, 'players', player.id, 'progress')
+        )
+
+        if (!progressSnaps.empty) {
+          progressSnaps.forEach(snap => {
+            const moduleId  = snap.id
+            const remoteMap = snap.data().map ?? {}
+            const localKey  = `geofamily_progress_${player.id}_${moduleId}`
+            lsSet(localKey, mergeProgress(lsGet(localKey) ?? {}, remoteMap))
+          })
+        } else {
+          await migrateLegacyProgress(player)
+        }
+
+        const histSnap = await getDoc(playerHistoryPath(player.id))
+        if (histSnap.exists()) {
+          const remoteRounds = normaliseHistory(histSnap.data())
+          const localKey     = `geofamily_history_${player.id}`
+          const localRounds  = normaliseHistory(lsGet(localKey))
+          lsSet(localKey, { rounds: mergeHistory(localRounds, remoteRounds) })
+        } else {
+          await migrateLegacyHistory(player)
+        }
+      } catch (err) {
+        console.warn(`[useSync] pullAndMerge failed for player ${player.id}:`, err)
+      }
+    }
+  }, [])
+
+  // ── Legacy migration helpers ──────────────────────────────────────────────
+
+  async function migrateLegacyProgress(player) {
+    if (!player.familyCode || player.familyCode.length <= 10) return
+    try {
+      const prefix    = `geofamily_progress_${player.id}_`
+      const moduleIds = Object.keys(localStorage)
+        .filter(k => k.startsWith(prefix))
+        .map(k => k.slice(prefix.length))
+      for (const moduleId of moduleIds) {
+        const legacySnap = await getDoc(legacyProgressPath(player.familyCode, player.id, moduleId))
+        if (legacySnap.exists()) {
+          const remoteMap = legacySnap.data().map ?? {}
+          const localKey  = `geofamily_progress_${player.id}_${moduleId}`
+          const merged    = mergeProgress(lsGet(localKey) ?? {}, remoteMap)
+          lsSet(localKey, merged)
+          await setDoc(playerProgressPath(player.id, moduleId), {
+            map: merged, updatedAt: Date.now(),
+          }, { merge: false })
+        }
+      }
+    } catch (err) {
+      console.warn('[useSync] legacy progress migration failed:', err)
+    }
+  }
+
+  async function migrateLegacyHistory(player) {
+    if (!player.familyCode || player.familyCode.length <= 10) return
+    try {
+      const legacySnap = await getDoc(legacyHistoryPath(player.familyCode, player.id))
+      if (legacySnap.exists()) {
+        const remoteRounds = normaliseHistory(legacySnap.data())
+        const localKey     = `geofamily_history_${player.id}`
+        const localRounds  = normaliseHistory(lsGet(localKey))
+        const merged       = { rounds: mergeHistory(localRounds, remoteRounds) }
+        lsSet(localKey, merged)
+        await setDoc(playerHistoryPath(player.id), {
+          rounds: merged.rounds, updatedAt: Date.now(),
+        }, { merge: false })
+      }
+    } catch (err) {
+      console.warn('[useSync] legacy history migration failed:', err)
+    }
+  }
+
+  // ── PIN mechanics ─────────────────────────────────────────────────────────
+
+  const generateJoinPin = useCallback(async () => {
+    if (!deviceFamilyCode || deviceFamilyCode.length <= 10) {
+      return { error: 'no_family' }
     }
     try {
-      const pin       = String(Math.floor(100000 + Math.random() * 900000))
-      const expiresAt = Date.now() + 10 * 60 * 1000
-      await setDoc(
-        doc(db, 'joinPins', pin),
-        { familyCode, familyName: familyNameArg, expiresAt },
-      )
-      return { ok: true, pin }
+      const pin = String(Math.floor(100000 + Math.random() * 900000))
+      await setDoc(doc(db, 'joinPins', pin), {
+        familyCode: deviceFamilyCode,
+        familyName: deviceFamilyName,
+        expiresAt:  Date.now() + 10 * 60 * 1000,
+      })
+      return { pin }
     } catch (err) {
       console.warn('[useSync] generateJoinPin failed:', err)
-      return { ok: false, error: 'network' }
+      return { error: 'network' }
     }
-  }, [syncEnabled, familyCode])
+  }, [deviceFamilyCode, deviceFamilyName])
 
-  // ── Join via PIN ──────────────────────────────────────────────────────────
   const joinViaPin = useCallback(async (pin) => {
-    const trimmed = pin.trim().replace(/\s/g, '')
-    if (trimmed.length !== 6 || !/^\d+$/.test(trimmed)) {
-      return { ok: false, error: 'invalid_format' }
-    }
+    const trimmed = pin.trim()
+    if (!/^\d{6}$/.test(trimmed)) return { error: 'invalid_format' }
     try {
       const snap = await getDoc(doc(db, 'joinPins', trimmed))
-      if (!snap.exists())         return { ok: false, error: 'not_found' }
-      const { familyCode: fc, familyName: fn, expiresAt } = snap.data()
-      if (Date.now() > expiresAt) return { ok: false, error: 'expired' }
-      deleteDoc(doc(db, 'joinPins', trimmed)).catch(() => {})
-      return { ok: true, familyCode: fc, familyName: fn }
+      if (!snap.exists())          return { error: 'not_found' }
+      const data = snap.data()
+      if (data.expiresAt < Date.now()) return { error: 'expired' }
+      return { familyCode: data.familyCode, familyName: data.familyName }
     } catch (err) {
       console.warn('[useSync] joinViaPin failed:', err)
+      return { error: 'network' }
+    }
+  }, [])
+
+  // ── Handle claim ──────────────────────────────────────────────────────────
+  // Phase 9.5: atomically claim a unique handle in Firestore.
+  // The handles/{handle} document acts as a reservation — write succeeds only
+  // if the document doesn't exist yet (enforced by Firestore rules: allow create only).
+  // Returns { ok: true } or { ok: false, error: 'taken' | 'network' }
+  const claimHandle = useCallback(async (handle, playerId) => {
+    if (!handle || handle.length < 2) return { ok: false, error: 'too_short' }
+    const normalized = handle.toLowerCase().replace(/[^a-z0-9_]/g, '')
+    if (normalized !== handle.toLowerCase()) return { ok: false, error: 'invalid_chars' }
+    try {
+      // Check if already taken
+      const existing = await getDoc(doc(db, 'handles', normalized))
+      if (existing.exists()) {
+        // If it's claimed by this player already, that's fine
+        if (existing.data().playerId === playerId) return { ok: true, handle: normalized }
+        return { ok: false, error: 'taken' }
+      }
+      // Claim it
+      await setDoc(doc(db, 'handles', normalized), {
+        playerId,
+        claimedAt: Date.now(),
+      })
+      return { ok: true, handle: normalized }
+    } catch (err) {
+      console.warn('[useSync] claimHandle failed:', err)
       return { ok: false, error: 'network' }
     }
   }, [])
 
   return {
-    pullAndMerge,
-    pushPlayers,
+    getFirebaseUid,
+    pushProfile,
     pushProgress,
     pushHistory,
     pushAllLocal,
+    pullAndMerge,
     generateJoinPin,
     joinViaPin,
+    claimHandle,
   }
 }

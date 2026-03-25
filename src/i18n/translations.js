@@ -293,6 +293,40 @@ const translations = {
   syncLeaveWarning:  { en: 'Your data stays on this device, but sync will stop. To rejoin you\'ll need a new PIN.',
                      el: 'Τα δεδομένα σας παραμένουν στη συσκευή, αλλά ο συγχρονισμός θα σταματήσει. Για επανασύνδεση θα χρειαστείτε νέο PIN.' },
   syncLeaveConfirm:  { en: 'Leave',                                       el: 'Αποχώρηση' },
+
+  // --- Settings modal (Phase 9) ---
+  settingsTitle:          { en: 'Settings',                          el: 'Ρυθμίσεις' },
+  settingsSwitchPlayer:   { en: 'Switch',                            el: 'Αλλαγή' },
+
+  // --- Per-player family sync (Phase 9) ---
+  syncFamilyTitle:        { en: 'Family sync',                       el: 'Συγχρονισμός οικογένειας' },
+  syncGuestLabel:         { en: 'Guest — local only',                el: 'Επισκέπτης — μόνο τοπικά' },
+  syncGeneratePin:        { en: 'Add device',                        el: 'Προσθήκη συσκευής' },
+  syncChangeFamily:       { en: 'Change family',                     el: 'Αλλαγή οικογένειας' },
+  syncSharePin:           { en: 'Share this PIN (10 min)',            el: 'Μοιράσου αυτό το PIN (10 λεπτά)' },
+  syncDismiss:            { en: 'Dismiss',                           el: 'Κλείσιμο' },
+  syncDeviceDefaultFamily:{ en: 'Device default family',             el: 'Προεπιλογή οικογένειας συσκευής' },
+  syncDeviceDefaultHint:  { en: 'New players automatically join this family.',
+                            el: 'Οι νέοι παίκτες εντάσσονται αυτόματα σε αυτήν.' },
+  syncPlayerFamilyHint:   { en: 'Each player can have their own family — edit a player profile to change it.',
+                            el: 'Κάθε παίκτης μπορεί να έχει δική του οικογένεια — επεξεργάσου το προφίλ.' },
+  syncPinGenerateFailed:  { en: 'Could not generate PIN.',           el: 'Αδυναμία δημιουργίας PIN.' },
+  syncLeaveWarningDevice: { en: 'This removes the device default family. Players keep their own family settings.',
+                            el: 'Αφαιρεί μόνο την προεπιλογή. Οι παίκτες διατηρούν τις ρυθμίσεις τους.' },
+
+  // --- Handle (Phase 9.5) ---
+  handleTitle:        { en: 'Public handle',                     el: 'Δημόσιο όνομα χρήστη'          },
+  handleHint:         { en: 'Optional — used on leaderboards & for friends',
+                        el: 'Προαιρετικό — εμφανίζεται στις κατατάξεις'                               },
+  handleSet:          { en: 'Set a handle',                      el: 'Ορισμός ονόματος'               },
+  handleChange:       { en: 'Change handle',                     el: 'Αλλαγή ονόματος'                },
+  handleClaim:        { en: 'Claim',                             el: 'Αποθήκευση'                     },
+  handleTaken:        { en: 'Already taken — try another.',      el: 'Χρησιμοποιείται ήδη — δοκίμασε άλλο.' },
+  handleTooShort:     { en: 'At least 2 characters.',            el: 'Τουλάχιστον 2 χαρακτήρες.'      },
+  handleInvalidChars: { en: 'Letters, numbers and _ only.',      el: 'Μόνο γράμματα, αριθμοί και _.'  },
+
 }
+
+
 
 export default translations
